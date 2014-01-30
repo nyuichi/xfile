@@ -1,4 +1,7 @@
-#include <stddef.h>
+#include <assert.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef struct {
   short flags;
@@ -19,38 +22,42 @@ typedef struct {
     long (*seek)(void *, long, int);
     int (*close)(void *);
   } vtable;
-} pic_file;
+} XFILE;
+
+enum {
+  XFILE_EOF = 1,
+};
 
 /* generic file constructor */
-pic_file *pic_funopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
+XFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
 
 /* buffering */
-int pic_setvbuf(pic_file *, char *, int, size_t);
-int pic_fflush(pic_file *);
-int pic_ffill(pic_file *);
+int xsetvbuf(XFILE *, char *, int, size_t);
+int xfflush(XFILE *);
+int xffill(XFILE *);
 
 /* resource aquisition */
-pic_file *pic_fopen(const char *, const char *);
-pic_file *pic_mopen(const char *, size_t, const char *);
-int pic_fclose(pic_file *);
+XFILE *xfopen(const char *, const char *);
+XFILE *xmopen(const char *, size_t, const char *);
+int xfclose(XFILE *);
 
 /* direct IO with buffering */
-size_t pic_fread(void *, size_t, size_t, pic_file *);
-size_t pic_fwrite(const void *, size_t, size_t, pic_file *);
+size_t xfread(void *, size_t, size_t, XFILE *);
+size_t xfwrite(const void *, size_t, size_t, XFILE *);
 
 /* indicator positioning */
-long pic_fseek(pic_file *, long offset, int whence);
-long pic_ftell(pic_file *);
-void pic_rewind(pic_file *);
+long xfseek(XFILE *, long offset, int whence);
+long xftell(XFILE *);
+void xrewind(XFILE *);
 
 /* character IO */
-int pic_fgetc(pic_file *);
-int pic_ungetc(int, pic_file *);
-int pic_fputc(int, pic_file *);
-int pic_fputs(const char *, pic_file *);
+int xfgetc(XFILE *);
+int xungetc(int, XFILE *);
+int xfputc(int, XFILE *);
+int xfputs(const char *, XFILE *);
 
 int
-pic_setvbuf(pic_file *file, char *buf, int mode, size_t bufsiz)
+xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
 {
   /* FIXME: free old buf */
   assert(mode != _IONBF);       /* FIXME: support IONBF */
@@ -77,7 +84,7 @@ pic_setvbuf(pic_file *file, char *buf, int mode, size_t bufsiz)
 }
 
 int
-pic_fflush(pic_file *file)
+xfflush(XFILE *file)
 {
   int r;
 
@@ -88,29 +95,29 @@ pic_fflush(pic_file *file)
 }
 
 int
-pic_ffill(pic_file *file)
+xffill(XFILE *file)
 {
   int r;
 
   r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c);
   /* TODO: error handling (r == -1) */
   if (r < file->e - file->c) {
-    file->flags |= PIC_FILE_EOF;
+    file->flags |= XFILE_EOF;
   }
   file->c += r;
   return r;
 }
 
-pic_file *
-pic_funopen(void *cookie,
+XFILE *
+xfunopen(void *cookie,
             int (*read)(void *, char *, int),
             int (*write)(void *, const char *, int),
             long (*seek)(void *, long, int),
             int (*close)(void *))
 {
-  pic_file *file;
+  XFILE *file;
 
-  file = (pic_file *)malloc(sizeof(pic_file));
+  file = (XFILE *)malloc(sizeof(XFILE));
   if (! file) {
     return NULL;
   }
@@ -128,7 +135,7 @@ pic_funopen(void *cookie,
   file->vtable.seek = seek;
   file->vtable.close = close;
 
-  pic_setvbuf(file, (char *)NULL, _IOFBF, 0);
+  xsetvbuf(file, (char *)NULL, _IOFBF, 0);
 
   return file;
 }
@@ -157,8 +164,8 @@ file_close(void *cookie)
   return fclose((FILE *)cookie);
 }
 
-pic_file *
-pic_fopen(const char *filename, const char *mode)
+XFILE *
+xfopen(const char *filename, const char *mode)
 {
   FILE *fp;
 
@@ -166,11 +173,11 @@ pic_fopen(const char *filename, const char *mode)
   if (! fp) {
     return NULL;
   }
-  return pic_funopen(fp, file_read, file_write, file_seek, file_close);
+  return xfunopen(fp, file_read, file_write, file_seek, file_close);
 }
 
 int
-pic_fclose(pic_file *file)
+xfclose(XFILE *file)
 {
   int r;
 
@@ -183,7 +190,7 @@ pic_fclose(pic_file *file)
 }
 
 size_t
-pic_fread(void *ptr, size_t block, size_t nitems, pic_file *file)
+xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
 {
   int size, avail;
   char *dst = (char *)ptr;
@@ -210,9 +217,9 @@ pic_fread(void *ptr, size_t block, size_t nitems, pic_file *file)
       file->c = file->s;
       size -= avail;
       dst += avail;
-      if ((file->flags & PIC_FILE_EOF) != 0)
+      if ((file->flags & XFILE_EOF) != 0)
         break;
-      pic_ffill(file);
+      xffill(file);
     }
   }
   /* handle end-of-file */
@@ -221,7 +228,7 @@ pic_fread(void *ptr, size_t block, size_t nitems, pic_file *file)
 }
 
 size_t
-pic_fwrite(const void *ptr, size_t block, size_t nitems, pic_file *file)
+xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
 {
   int size, room;
   char *dst = (char *)ptr;
@@ -234,7 +241,7 @@ pic_fwrite(const void *ptr, size_t block, size_t nitems, pic_file *file)
       file->c = file->e;
       size -= room;
       dst += room;
-      pic_fflush(file);
+      xfflush(file);
     }
     else {
       memcpy(file->c, dst, size);
@@ -245,39 +252,39 @@ pic_fwrite(const void *ptr, size_t block, size_t nitems, pic_file *file)
 }
 
 int
-pic_fgetc(pic_file *file)
+xfgetc(XFILE *file)
 {
   char buf[1];
 
-  pic_fread(buf, 1, 1, file);
+  xfread(buf, 1, 1, file);
 
   return buf[0];
 }
 
 int
-pic_ungetc(int c, pic_file *file)
+xungetc(int c, XFILE *file)
 {
   return file->ub[file->ur++] = (char)c;
 }
 
 int
-pic_fputc(int c, pic_file *file)
+xfputc(int c, XFILE *file)
 {
   char buf[1];
 
   buf[0] = c;
-  pic_fwrite(buf, 1, 1, file);
+  xfwrite(buf, 1, 1, file);
 
   return buf[0];
 }
 
 int
-pic_fputs(const char *str, pic_file *file)
+xfputs(const char *str, XFILE *file)
 {
   int len;
 
   len = strlen(str);
-  pic_fwrite(str, len, 1, file);
+  xfwrite(str, len, 1, file);
 
   return 0;
 }
