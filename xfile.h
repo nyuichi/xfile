@@ -1,3 +1,6 @@
+#ifndef XFILE_H__
+#define XFILE_H__
+
 #include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -288,3 +291,5 @@ xfputs(const char *str, XFILE *file)
 
   return 0;
 }
+
+#endif
