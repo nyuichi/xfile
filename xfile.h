@@ -36,34 +36,34 @@ enum {
 };
 
 /* generic file constructor */
-static XFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
+static inline XFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
 
 /* buffering */
-static int xsetvbuf(XFILE *, char *, int, size_t);
-static int xfflush(XFILE *);
-static int xffill(XFILE *);
+static inline int xsetvbuf(XFILE *, char *, int, size_t);
+static inline int xfflush(XFILE *);
+static inline int xffill(XFILE *);
 
 /* resource aquisition */
-static XFILE *xfopen(const char *, const char *);
-static XFILE *xmopen(const char *, size_t, const char *);
-static int xfclose(XFILE *);
+static inline XFILE *xfopen(const char *, const char *);
+static inline XFILE *xmopen(const char *, size_t, const char *);
+static inline int xfclose(XFILE *);
 
 /* direct IO with buffering */
-static size_t xfread(void *, size_t, size_t, XFILE *);
-static size_t xfwrite(const void *, size_t, size_t, XFILE *);
+static inline size_t xfread(void *, size_t, size_t, XFILE *);
+static inline size_t xfwrite(const void *, size_t, size_t, XFILE *);
 
 /* indicator positioning */
-static long xfseek(XFILE *, long offset, int whence);
-static long xftell(XFILE *);
-static void xrewind(XFILE *);
+static inline long xfseek(XFILE *, long offset, int whence);
+static inline long xftell(XFILE *);
+static inline void xrewind(XFILE *);
 
 /* character IO */
-static int xfgetc(XFILE *);
-static int xungetc(int, XFILE *);
-static int xfputc(int, XFILE *);
-static int xfputs(const char *, XFILE *);
+static inline int xfgetc(XFILE *);
+static inline int xungetc(int, XFILE *);
+static inline int xfputc(int, XFILE *);
+static inline int xfputs(const char *, XFILE *);
 
-static int
+static inline int
 xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
 {
   /* FIXME: free old buf */
@@ -90,7 +90,7 @@ xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
   return 0;
 }
 
-static int
+static inline int
 xfflush(XFILE *file)
 {
   int r;
@@ -101,7 +101,7 @@ xfflush(XFILE *file)
   return r;
 }
 
-static int
+static inline int
 xffill(XFILE *file)
 {
   int r;
@@ -115,7 +115,7 @@ xffill(XFILE *file)
   return r;
 }
 
-static XFILE *
+static inline XFILE *
 xfunopen(void *cookie,
             int (*read)(void *, char *, int),
             int (*write)(void *, const char *, int),
@@ -147,31 +147,31 @@ xfunopen(void *cookie,
   return file;
 }
 
-static int
+static inline int
 file_read(void *cookie, char *ptr, int size)
 {
   return fread(ptr, 1, size, (FILE *)cookie);
 }
 
-static int
+static inline int
 file_write(void *cookie, const char *ptr, int size)
 {
   return fwrite(ptr, 1, size, (FILE *)cookie);
 }
 
-static long
+static inline long
 file_seek(void *cookie, long pos, int whence)
 {
   return fseek((FILE *)cookie, pos, whence);
 }
 
-static int
+static inline int
 file_close(void *cookie)
 {
   return fclose((FILE *)cookie);
 }
 
-static XFILE *
+static inline XFILE *
 xfopen(const char *filename, const char *mode)
 {
   FILE *fp;
@@ -183,7 +183,7 @@ xfopen(const char *filename, const char *mode)
   return xfunopen(fp, file_read, file_write, file_seek, file_close);
 }
 
-static int
+static inline int
 xfclose(XFILE *file)
 {
   int r;
@@ -196,7 +196,7 @@ xfclose(XFILE *file)
   return 0;
 }
 
-static size_t
+static inline size_t
 xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
 {
   int size, avail;
@@ -234,7 +234,7 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
   return block * nitems - size;
 }
 
-static size_t
+static inline size_t
 xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
 {
   int size, room;
@@ -258,7 +258,7 @@ xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
   }
 }
 
-static int
+static inline int
 xfgetc(XFILE *file)
 {
   char buf[1];
@@ -268,13 +268,13 @@ xfgetc(XFILE *file)
   return buf[0];
 }
 
-static int
+static inline int
 xungetc(int c, XFILE *file)
 {
   return file->ub[file->ur++] = (char)c;
 }
 
-static int
+static inline int
 xfputc(int c, XFILE *file)
 {
   char buf[1];
@@ -285,7 +285,7 @@ xfputc(int c, XFILE *file)
   return buf[0];
 }
 
-static int
+static inline int
 xfputs(const char *str, XFILE *file)
 {
   int len;
