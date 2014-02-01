@@ -44,8 +44,8 @@ static int xfflush(XFILE *);
 static int xffill(XFILE *);
 
 /* resource aquisition */
-STATIC XFILE *xfopen(const char *, const char *);
-STATIC XFILE *xmopen(const char *, size_t, const char *);
+static XFILE *xfopen(const char *, const char *);
+static XFILE *xmopen(const char *, size_t, const char *);
 static int xfclose(XFILE *);
 
 /* direct IO with buffering */
