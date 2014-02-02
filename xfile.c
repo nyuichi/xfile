@@ -125,6 +125,34 @@ xfopen(const char *filename, const char *mode)
   return xfunopen(fp, file_read, file_write, file_seek, file_close);
 }
 
+static XFILE *xfile_stdinp__;
+static XFILE *xfile_stdoutp__;
+static XFILE *xfile_stderrp__;
+
+XFILE *
+xstdin_()
+{
+  return xfile_stdinp__
+    ? xfile_stdinp__
+    : (xfile_stdinp__ = xfunopen(stdin, file_read, file_write, file_seek, file_close));
+}
+
+XFILE *
+xstdout_()
+{
+  return xfile_stdoutp__
+    ? xfile_stdoutp__
+    : (xfile_stdoutp__ = xfunopen(stdout, file_read, file_write, file_seek, file_close));
+}
+
+XFILE *
+xstderr_()
+{
+  return xfile_stderrp__
+    ? xfile_stderrp__
+    : (xfile_stderrp__ = xfunopen(stderr, file_read, file_write, file_seek, file_close));
+}
+
 int
 xfclose(XFILE *file)
 {

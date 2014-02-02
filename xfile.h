@@ -60,6 +60,15 @@ int xungetc(int, XFILE *);
 int xfputc(int, XFILE *);
 int xfputs(const char *, XFILE *);
 
+/* standard I/O */
+XFILE *xstdin_();
+XFILE *xstdout_();
+XFILE *xstderr_();
+
+#define xstdin	(xstdin_())
+#define xstdout	(xstdout_())
+#define xstderr	(xstderr_())
+
 #if defined(__cplusplus)
 }
 #endif
