@@ -158,6 +158,8 @@ xfclose(XFILE *file)
 {
   int r;
 
+  xfflush(file);
+
   r = file->vtable.close(file->vtable.cookie);
   if (! r) {
     return -1;
