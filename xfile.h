@@ -67,6 +67,11 @@ int xputchar(int);
 int xputs(char *);
 int xungetc(int, XFILE *);
 
+/* formatted I/O */
+int xprintf(XFILE *, const char *, ...);
+int xfprintf(XFILE *, const char *, ...);
+int xvfprintf(XFILE *, const char *, va_list);
+
 /* standard I/O */
 XFILE *xstdin_();
 XFILE *xstdout_();
