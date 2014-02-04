@@ -6,6 +6,7 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include <stdarg.h>
 
 typedef struct {
   short flags;
@@ -68,7 +69,7 @@ int xputs(char *);
 int xungetc(int, XFILE *);
 
 /* formatted I/O */
-int xprintf(XFILE *, const char *, ...);
+int xprintf(const char *, ...);
 int xfprintf(XFILE *, const char *, ...);
 int xvfprintf(XFILE *, const char *, va_list);
 
