@@ -56,9 +56,16 @@ void xrewind(XFILE *);
 
 /* character IO */
 int xfgetc(XFILE *);
-int xungetc(int, XFILE *);
+char *xfgets(char *, int, XFILE *);
 int xfputc(int, XFILE *);
 int xfputs(const char *, XFILE *);
+char xgetc(XFILE *);
+char xgetchar(void);
+/* char *xgets(char *); */
+int xputc(int, XFILE *);
+int xputchar(int);
+int xputs(char *);
+int xungetc(int, XFILE *);
 
 /* standard I/O */
 XFILE *xstdin_();
