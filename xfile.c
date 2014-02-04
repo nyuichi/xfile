@@ -57,6 +57,17 @@ xffill(XFILE *file)
   return r;
 }
 
+static char xfile_atexit_registered__;
+static XFILE *xfile_chain_ptr__;
+
+static void
+xfile_atexit()
+{
+  while (xfile_chain_ptr__) {
+    xfclose(xfile_chain_ptr__);
+  }
+}
+
 XFILE *
 xfunopen(void *cookie,
          int (*read)(void *, char *, int),
@@ -83,8 +94,16 @@ xfunopen(void *cookie,
   file->vtable.write = write;
   file->vtable.seek = seek;
   file->vtable.close = close;
+  /* chain */
+  file->next = xfile_chain_ptr__;
+  xfile_chain_ptr__ = file;
 
   xsetvbuf(file, (char *)NULL, _IOFBF, 0);
+
+  if (! xfile_atexit_registered__) {
+    xfile_atexit_registered__ = true;
+    atexit(xfile_atexit);
+  }
 
   return file;
 }
@@ -156,6 +175,7 @@ xstderr_()
 int
 xfclose(XFILE *file)
 {
+  XFILE *chain;
   int r;
 
   xfflush(file);
@@ -163,6 +183,19 @@ xfclose(XFILE *file)
   r = file->vtable.close(file->vtable.cookie);
   if (! r) {
     return -1;
+  }
+
+  /* unchain */
+  if (xfile_chain_ptr__ == file) {
+    xfile_chain_ptr__ = xfile_chain_ptr__->next;
+  }
+  else {
+    for (chain = xfile_chain_ptr__; ; chain = chain->next) {
+      if (chain->next == file) {
+        chain->next = file->next;
+        break;
+      }
+    }
   }
   free(file);
   return 0;

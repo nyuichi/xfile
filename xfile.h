@@ -8,7 +8,7 @@ extern "C" {
 #include <stddef.h>
 #include <stdarg.h>
 
-typedef struct {
+typedef struct XFILE {
   short flags;
   /* buffered IO */
   char *buf;
@@ -27,6 +27,7 @@ typedef struct {
     long (*seek)(void *, long, int);
     int (*close)(void *);
   } vtable;
+  struct XFILE *next;
 } XFILE;
 
 enum {
