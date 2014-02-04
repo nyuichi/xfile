@@ -59,10 +59,10 @@ xffill(XFILE *file)
 
 XFILE *
 xfunopen(void *cookie,
-            int (*read)(void *, char *, int),
-            int (*write)(void *, const char *, int),
-            long (*seek)(void *, long, int),
-            int (*close)(void *))
+         int (*read)(void *, char *, int),
+         int (*write)(void *, const char *, int),
+         long (*seek)(void *, long, int),
+         int (*close)(void *))
 {
   XFILE *file;
 
@@ -264,4 +264,70 @@ xfputs(const char *str, XFILE *file)
   xfwrite(str, len, 1, file);
 
   return 0;
+}
+
+int
+xprintf(const char *fmt, ...)
+{
+  va_list ap;
+  int n;
+
+  va_start(ap, fmt);
+  n = xvfprintf(xstdout, fmt, ap);
+  va_end(ap);
+  return n;
+}
+
+int
+xfprintf(XFILE *stream, const char *fmt, ...)
+{
+  va_list ap;
+  int n;
+
+  va_start(ap, fmt);
+  n = xvfprintf(stream, fmt, ap);
+  va_end(ap);
+  return n;
+}
+
+int
+xvfprintf(XFILE *stream, const char *fmt, va_list ap)
+{
+  static char buf[1024 + 1];
+  int n = 0, k;
+  char c, *str;
+
+  while ((c = *fmt++)) {
+    if (c == '%') {
+      if (! (c = *fmt++))
+        break;
+      switch (c) {
+      case '%':
+        xfputs("%", stream);
+        n++;
+        break;
+      case 'd':
+        n += snprintf(buf, 1024, "%d", va_arg(ap, int));
+        xfputs(buf, stream);
+        break;
+      case 'f':
+        n += snprintf(buf, 1024, "%f", va_arg(ap, double));
+        xfputs(buf, stream);
+        break;
+      case 's':
+        str = va_arg(ap, char *);
+        do {
+          k = snprintf(buf, 1024, "%s", str);
+          xfputs(buf, stream);
+          n += k;
+        } while (k >= 1024);
+        break;
+      }
+    }
+    else {
+      xfputc(c, stream);
+      n++;
+    }
+  }
+  return n;
 }
