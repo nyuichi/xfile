@@ -101,7 +101,7 @@ xfunopen(void *cookie,
   xsetvbuf(file, (char *)NULL, _IOFBF, 0);
 
   if (! xfile_atexit_registered__) {
-    xfile_atexit_registered__ = true;
+    xfile_atexit_registered__ = 1;
     atexit(xfile_atexit);
   }
 
