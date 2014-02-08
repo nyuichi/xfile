@@ -44,7 +44,7 @@ int xffill(XFILE *);
 
 /* resource aquisition */
 XFILE *xfopen(const char *, const char *);
-XFILE *xmopen(const char *, size_t, const char *);
+XFILE *xmopen();
 int xfclose(XFILE *);
 
 /* direct IO with buffering */

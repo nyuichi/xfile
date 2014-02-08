@@ -374,3 +374,88 @@ xvfprintf(XFILE *stream, const char *fmt, va_list ap)
   }
   return n;
 }
+
+struct membuf {
+  char *buf;
+  long pos, end, capa;
+};
+
+#define min(a,b) (((a)>(b))?(b):(a))
+#define max(a,b) (((a)<(b))?(b):(a))
+
+static int
+mem_read(void *cookie, char *ptr, int size)
+{
+  struct membuf *mem;
+
+  mem = (struct membuf *)cookie;
+
+  size = min(size, mem->end - mem->pos);
+  memcpy(ptr, mem->buf, size);
+  mem->pos += size;
+  return size;
+}
+
+static int
+mem_write(void *cookie, const char *ptr, int size)
+{
+  struct membuf *mem;
+
+  mem = (struct membuf *)cookie;
+
+  if (mem->pos + size > mem->capa) {
+    mem->capa = (mem->pos + size) * 2;
+    mem->buf = realloc(mem->buf, mem->capa);
+  }
+  memcpy(mem->buf + mem->pos, ptr, size);
+  mem->pos += size;
+  mem->end = max(mem->pos, mem->end);
+  return size;
+}
+
+static long
+mem_seek(void *cookie, long pos, int whence)
+{
+  struct membuf *mem;
+
+  mem = (struct membuf *)cookie;
+
+  switch (whence) {
+  case SEEK_SET:
+    mem->pos = pos;
+    break;
+  case SEEK_CUR:
+    mem->pos += pos;
+    break;
+  case SEEK_END:
+    mem->pos = mem->end + pos;
+    break;
+  }
+
+  return mem->pos;
+}
+
+static int
+mem_close(void *cookie)
+{
+  struct membuf *mem;
+
+  mem = (struct membuf *)cookie;
+  free(mem->buf);
+  free(mem);
+  return 0;
+}
+
+XFILE *
+xmopen()
+{
+  struct membuf *mem;
+
+  mem = (struct membuf *)malloc(sizeof(struct membuf));
+  mem->buf = (char *)malloc(BUFSIZ);
+  mem->pos = 0;
+  mem->end = 0;
+  mem->capa = BUFSIZ;
+
+  return xfunopen(mem, mem_read, mem_write, mem_seek, mem_close);
+}
