@@ -357,6 +357,10 @@ xvfprintf(XFILE *stream, const char *fmt, va_list ap)
           n += k;
         } while (k >= 1024);
         break;
+      case 'p':
+        n += snprintf(buf, 1024, "%p", va_arg(ap, void *));
+        xfputs(buf, stream);
+        break;
       }
     }
     else {
