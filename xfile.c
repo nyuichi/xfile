@@ -345,6 +345,10 @@ xvfprintf(XFILE *stream, const char *fmt, va_list ap)
         n += snprintf(buf, 1024, "%d", va_arg(ap, int));
         xfputs(buf, stream);
         break;
+      case 'c':
+        n += snprintf(buf, 1024, "%c", va_arg(ap, int));
+        xfputs(buf, stream);
+        break;
       case 'f':
         n += snprintf(buf, 1024, "%f", va_arg(ap, double));
         xfputs(buf, stream);
