@@ -263,6 +263,24 @@ xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
   }
 }
 
+long
+xfseek(XFILE *file, long offset, int whence)
+{
+  return file->vtable.seek(file->vtable.cookie, offset, whence);
+}
+
+long
+xftell(XFILE *file)
+{
+  return file->vtable.seek(file->vtable.cookie, 0, SEEK_CUR);
+}
+
+void
+xrewind(XFILE *file)
+{
+  file->vtable.seek(file->vtable.cookie, 0, SEEK_SET);
+}
+
 int
 xfgetc(XFILE *file)
 {
