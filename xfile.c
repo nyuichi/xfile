@@ -49,10 +49,7 @@ xffill(XFILE *file)
   int r;
 
   r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c);
-  /* TODO: error handling (r == -1) */
-  if (r < file->e - file->c) {
-    file->flags |= XFILE_EOF;
-  }
+  /* TODO: error handling (r == -1 or r < file->e - file->c) */
   file->c += r;
   return r;
 }
@@ -204,7 +201,7 @@ xfclose(XFILE *file)
 size_t
 xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
 {
-  int size, avail;
+  int size, avail, eof = 0;
   char *dst = (char *)ptr;
 
   size = block * nitems;        /* TODO: optimize block read */
@@ -229,14 +226,14 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
       file->c = file->s;
       size -= avail;
       dst += avail;
-      if ((file->flags & XFILE_EOF) != 0)
-        break;
-      xffill(file);
+      if (eof) {
+        *dst = EOF;
+        return block * nitems - size;
+      }
+      if (xffill(file) < file->e - file->c)
+        eof = 1;
     }
   }
-  /* handle end-of-file */
-  *dst = EOF;
-  return block * nitems - size;
 }
 
 size_t
@@ -253,7 +250,7 @@ xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
       file->c = file->e;
       size -= room;
       dst += room;
-      xfflush(file);
+      xfflush(file);            /* TODO error handling */
     }
     else {
       memcpy(file->c, dst, size);
