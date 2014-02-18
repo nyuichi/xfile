@@ -230,7 +230,8 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
         *dst = EOF;
         return block * nitems - size;
       }
-      if (xffill(file) < file->e - file->c)
+      int r = file->e - file->c;
+      if (xffill(file) < r)
         eof = 1;
     }
   }
