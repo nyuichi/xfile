@@ -10,13 +10,16 @@ extern "C" {
 
 /* configurations */
 #ifndef XFILE_ENABLE_CSTDIO
-# define XFILE_ENABLE_CSTDIO 0
+# define XFILE_ENABLE_CSTDIO 1
 #endif
 #ifndef XFILE_ENABLE_POSIX
-# define XFILE_ENABLE_POSIX 1
+# define XFILE_ENABLE_POSIX 0
 #endif
 #ifndef XFILE_STDX_TYPE
-# define XFILE_STDX_TYPE 2       /* 0: no, 1: cstdio, 2: posix */
+# define XFILE_STDX_TYPE 1      /* 0: no, 1: cstdio, 2: posix */
+#endif
+#ifndef XFILE_FOPEN_TYPE
+# define XFILE_FOPEN_TYPE 1     /* 0: no, 1: cstdio, 2: posix */
 #endif
 
 #if XFILE_ENABLE_CSTDIO
@@ -69,11 +72,14 @@ int xfflush(XFILE *);
 int xffill(XFILE *);
 
 /* resource aquisition */
+#if XFILE_FOPEN_TYPE != 0
+XFILE *xfopen(const char *, const char *);
+#endif
 #if XFILE_ENABLE_CSTDIO
-XFILE *xfpopen(FILE *fp);
+XFILE *xfpopen(FILE *);
 #endif
 #if XFILE_ENABLE_POSIX
-XFILE *xfopen(const char *, const char *);
+XFILE *xfdopen(int);
 #endif
 XFILE *xmopen();
 int xfclose(XFILE *);

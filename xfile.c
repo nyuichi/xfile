@@ -134,22 +134,10 @@ file_close(void *cookie)
   return fclose((FILE *)cookie);
 }
 
-static XFILE *
-file_open(FILE *fp)
+XFILE *
+xfpopen(FILE *fp)
 {
   return xfunopen(fp, file_read, file_write, file_seek, file_close);
-}
-
-XFILE *
-xfopen(const char *filename, const char *mode)
-{
-  FILE *fp;
-
-  fp = fopen(filename, mode);
-  if (! fp) {
-    return NULL;
-  }
-  return file_open(fp);
 }
 
 #endif
@@ -180,11 +168,29 @@ fd_close(void *cookie)
   return close((int)(long)cookie);
 }
 
-static XFILE *
-fd_open(int fd)
+XFILE *
+xfdopen(int fd)
 {
   return xfunopen((void *)(long)fd, fd_read, fd_write, fd_seek, fd_close);
 }
+
+#endif
+
+#if XFILE_FOPEN_TYPE == 1
+
+XFILE *
+xfopen(const char *filename, const char *mode)
+{
+  FILE *fp;
+
+  fp = fopen(filename, mode);
+  if (! fp) {
+    return NULL;
+  }
+  return xfpopen(fp);
+}
+
+#elif XFILE_FOPEN_TYPE == 2
 
 XFILE *
 xfopen(const char *filename, const char *mode)
@@ -219,7 +225,7 @@ xfopen(const char *filename, const char *mode)
   if (fd == -1) {
     return NULL;
   }
-  return fd_open(fd);
+  return xfdopen(fd);
 }
 
 #endif
@@ -234,37 +240,37 @@ static XFILE *xfile_stderrp__;
 XFILE *
 xstdin_()
 {
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = file_open(stdin));
+  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfpopen(stdin));
 }
 
 XFILE *
 xstdout_()
 {
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = file_open(stdout));
+  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfpopen(stdout));
 }
 
 XFILE *
 xstderr_()
 {
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = file_open(stderr));
+  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfpopen(stderr));
 }
 # elif XFILE_STDX_TYPE == 2
 XFILE *
 xstdin_()
 {
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = fd_open(0));
+  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfdopen(0));
 }
 
 XFILE *
 xstdout_()
 {
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = fd_open(1));
+  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfdopen(1));
 }
 
 XFILE *
 xstderr_()
 {
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = fd_open(2));
+  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfdopen(2));
 }
 # endif
 
