@@ -1,58 +1,15 @@
 #include "xfile.h"
 
 #include <assert.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int
-xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
-{
-  /* FIXME: free old buf */
-  assert(mode != _IONBF);       /* FIXME: support IONBF */
-
-  file->mode = mode;
-  if (buf) {
-    file->buf = buf;
-    file->bufsiz = bufsiz;
-  }
-  else {
-    if (mode == _IONBF) {
-      file->buf = NULL;
-      file->bufsiz = 0;
-    }
-    else {
-      assert(bufsiz == 0);
-      file->buf = (char *)malloc(BUFSIZ);
-      file->bufsiz = BUFSIZ;
-    }
-  }
-  file->s = file->c = file->buf;
-  file->e = file->buf + file->bufsiz;
-  return 0;
-}
-
-int
-xfflush(XFILE *file)
-{
-  int r;
-
-  r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s);
-  /* TODO: error handling (r == -1 or r < file->c - file->s)*/
-  file->c -= r;
-  return r;
-}
-
-int
-xffill(XFILE *file)
-{
-  int r;
-
-  r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c);
-  /* TODO: error handling (r == -1 or r < file->e - file->c) */
-  file->c += r;
-  return r;
-}
+#if XFILE_ENABLE_POSIX
+# include <unistd.h>
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <fcntl.h>
+#endif
 
 static char xfile_atexit_registered__;
 static XFILE *xfile_chain_ptr__;
@@ -66,11 +23,7 @@ xfile_atexit()
 }
 
 XFILE *
-xfunopen(void *cookie,
-         int (*read)(void *, char *, int),
-         int (*write)(void *, const char *, int),
-         long (*seek)(void *, long, int),
-         int (*close)(void *))
+xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
 {
   XFILE *file;
 
@@ -105,6 +58,57 @@ xfunopen(void *cookie,
   return file;
 }
 
+int
+xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
+{
+  /* FIXME: free old buf */
+  assert(mode != _IOLBF);       /* FIXME: support IOLBF */
+
+  file->mode = mode;
+  if (buf) {
+    file->buf = buf;
+    file->bufsiz = bufsiz;
+  }
+  else {
+    if (mode == _IONBF) {
+      file->buf = NULL;
+      file->bufsiz = 0;
+    }
+    else {
+      assert(bufsiz == 0);      /* TODO allow custom buffer size? */
+      file->buf = (char *)malloc(BUFSIZ);
+      file->bufsiz = BUFSIZ;
+    }
+  }
+  file->s = file->c = file->buf;
+  file->e = file->buf + file->bufsiz;
+  return 0;
+}
+
+int
+xfflush(XFILE *file)
+{
+  int r;
+
+  r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s);
+  /* TODO: error handling (r == -1 or r < file->c - file->s)*/
+  file->c -= r;
+  return r;
+}
+
+int
+xffill(XFILE *file)
+{
+  int r;
+
+  r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c);
+  /* TODO: error handling (r == -1 or r < file->e - file->c) */
+  file->c += r;
+  return r;
+}
+
+#if XFILE_ENABLE_CSTDIO
+
 static int
 file_read(void *cookie, char *ptr, int size)
 {
@@ -129,6 +133,12 @@ file_close(void *cookie)
   return fclose((FILE *)cookie);
 }
 
+static XFILE *
+file_open(FILE *fp)
+{
+  return xfunopen(fp, file_read, file_write, file_seek, file_close);
+}
+
 XFILE *
 xfopen(const char *filename, const char *mode)
 {
@@ -138,36 +148,126 @@ xfopen(const char *filename, const char *mode)
   if (! fp) {
     return NULL;
   }
-  return xfunopen(fp, file_read, file_write, file_seek, file_close);
+  return file_open(fp);
 }
+
+#endif
+
+#if XFILE_ENABLE_POSIX
+
+static int
+fd_read(void *cookie, char *ptr, int size)
+{
+  return read((int)cookie, ptr, size);
+}
+
+static int
+fd_write(void *cookie, const char *ptr, int size)
+{
+  return write((int)cookie, ptr, size);
+}
+
+static long
+fd_seek(void *cookie, long pos, int whence)
+{
+  return lseek((int)cookie, pos, whence);
+}
+
+static int
+fd_close(void *cookie)
+{
+  return close((int)cookie);
+}
+
+static XFILE *
+fd_open(int fd)
+{
+  return xfunopen((void *)(long)fd, fd_read, fd_write, fd_seek, fd_close);
+}
+
+XFILE *
+xfopen(const char *filename, const char *mode)
+{
+  int fd, flags = 0;
+
+  switch (*mode++) {
+  case 'r':
+    if (*mode == '+') {
+      flags = O_RDWR;
+    } else {
+      flags = O_RDONLY;
+    }
+    break;
+  case 'w':
+    if (*mode == '+') {
+      flags = O_WRONLY | O_CREAT | O_TRUNC;
+    } else {
+      flags = O_RDWR | O_CREAT | O_TRUNC;
+    }
+    break;
+  case 'a':
+    if (*mode == '+') {
+      flags = O_WRONLY | O_CREAT | O_APPEND;
+    } else {
+      flags = O_RDWR | O_CREAT | O_APPEND;
+    }
+    break;
+  }
+
+  fd = open(filename, flags);
+  if (fd == -1) {
+    return NULL;
+  }
+  return fd_open(fd);
+}
+
+#endif
+
+#if XFILE_STDX_TYPE != 0
 
 static XFILE *xfile_stdinp__;
 static XFILE *xfile_stdoutp__;
 static XFILE *xfile_stderrp__;
 
+# if XFILE_STDX_TYPE == 1
 XFILE *
 xstdin_()
 {
-  return xfile_stdinp__
-    ? xfile_stdinp__
-    : (xfile_stdinp__ = xfunopen(stdin, file_read, file_write, file_seek, file_close));
+  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = file_open(stdin));
 }
 
 XFILE *
 xstdout_()
 {
-  return xfile_stdoutp__
-    ? xfile_stdoutp__
-    : (xfile_stdoutp__ = xfunopen(stdout, file_read, file_write, file_seek, file_close));
+  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = file_open(stdout));
 }
 
 XFILE *
 xstderr_()
 {
-  return xfile_stderrp__
-    ? xfile_stderrp__
-    : (xfile_stderrp__ = xfunopen(stderr, file_read, file_write, file_seek, file_close));
+  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = file_open(stderr));
 }
+# elif XFILE_STDX_TYPE == 2
+XFILE *
+xstdin_()
+{
+  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = fd_open(0));
+}
+
+XFILE *
+xstdout_()
+{
+  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = fd_open(1));
+}
+
+XFILE *
+xstderr_()
+{
+  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = fd_open(2));
+}
+# endif
+
+#endif
 
 int
 xfclose(XFILE *file)
@@ -213,6 +313,10 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
       return block * nitems;
   }
 
+  if (file->mode == _IONBF) {
+    return file->vtable.read(file->vtable.cookie, (char *)ptr, size);
+  }
+
   while (1) {
     avail = file->c - file->s;
     if (size <= avail) {
@@ -244,6 +348,11 @@ xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
   char *dst = (char *)ptr;
 
   size = block * nitems;               /* TODO: optimize block write */
+
+  if (file->mode == _IONBF) {
+    return file->vtable.write(file->vtable.cookie, (char *)ptr, size);
+  }
+
   while (1) {
     room = file->e - file->c;
     if (room < size) {
@@ -340,6 +449,9 @@ xfprintf(XFILE *stream, const char *fmt, ...)
   va_end(ap);
   return n;
 }
+
+/* FIXME! */
+#include <stdio.h>
 
 int
 xvfprintf(XFILE *stream, const char *fmt, va_list ap)

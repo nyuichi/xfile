@@ -8,6 +8,32 @@ extern "C" {
 #include <stddef.h>
 #include <stdarg.h>
 
+/* configurations */
+#ifndef XFILE_ENABLE_CSTDIO
+# define XFILE_ENABLE_CSTDIO 0
+#endif
+#ifndef XFILE_ENABLE_POSIX
+# define XFILE_ENABLE_POSIX 1
+#endif
+#ifndef XFILE_STDX_TYPE
+# define XFILE_STDX_TYPE 2       /* 0: no, 1: cstdio, 2: posix */
+#endif
+
+#if XFILE_ENABLE_CSTDIO
+# include <stdio.h>
+#else
+# if !defined(_IONBF)
+#  define _IOFBF 0
+#  define _IOLBF 1
+#  define _IONBF 2
+#  define BUFSIZ 1024
+# endif
+#endif
+
+#ifndef EOF
+# define EOF (-1)
+#endif
+
 typedef struct XFILE {
   short flags;
   /* buffered IO */
@@ -43,7 +69,12 @@ int xfflush(XFILE *);
 int xffill(XFILE *);
 
 /* resource aquisition */
+#if XFILE_ENABLE_CSTDIO
+XFILE *xfpopen(FILE *fp);
+#endif
+#if XFILE_ENABLE_POSIX
 XFILE *xfopen(const char *, const char *);
+#endif
 XFILE *xmopen();
 int xfclose(XFILE *);
 
@@ -74,14 +105,17 @@ int xprintf(const char *, ...);
 int xfprintf(XFILE *, const char *, ...);
 int xvfprintf(XFILE *, const char *, va_list);
 
+#if XFILE_STDX_TYPE != 0
+
 /* standard I/O */
 XFILE *xstdin_();
 XFILE *xstdout_();
 XFILE *xstderr_();
-
 #define xstdin	(xstdin_())
 #define xstdout	(xstdout_())
 #define xstderr	(xstderr_())
+
+#endif
 
 #if defined(__cplusplus)
 }
