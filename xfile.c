@@ -419,6 +419,7 @@ xfputs(const char *str, XFILE *file)
   return 0;
 }
 
+#if XFILE_STX_TYPE != 0
 int
 xprintf(const char *fmt, ...)
 {
@@ -430,6 +431,7 @@ xprintf(const char *fmt, ...)
   va_end(ap);
   return n;
 }
+#endif
 
 int
 xfprintf(XFILE *stream, const char *fmt, ...)
