@@ -91,10 +91,10 @@ xfflush(XFILE *file)
 {
   int r;
 
-  r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s);
-  /* TODO: error handling (r == -1 or r < file->c - file->s)*/
-  file->c -= r;
-  return r;
+  while ((r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s)) > 0) {
+    file->c -= r;
+  }
+  return r;                     /* 0 on success, -1 on error */
 }
 
 int
@@ -102,10 +102,10 @@ xffill(XFILE *file)
 {
   int r;
 
-  r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c);
-  /* TODO: error handling (r == -1 or r < file->e - file->c) */
-  file->c += r;
-  return r;
+  while ((r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c)) > 0) {
+    file->c += r;
+  }
+  return r;                     /* 0 on success, -1 on error */
 }
 
 #if XFILE_ENABLE_CSTDIO
@@ -331,8 +331,8 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
         *dst = EOF;
         return block * nitems - size;
       }
-      int r = file->e - file->c;
-      if (xffill(file) < r)
+      xffill(file);
+      if (file->c - file->s == 0)
         eof = 1;
     }
   }
