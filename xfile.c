@@ -113,13 +113,28 @@ xffill(XFILE *file)
 static int
 file_read(void *cookie, char *ptr, int size)
 {
-  return fread(ptr, 1, size, (FILE *)cookie);
+  int r;
+
+  r = fread(ptr, 1, size, (FILE *)cookie);
+  if (r < size && ferror((FILE *)cookie)) {
+    return -1;
+  }
+  if (r == 0 && feof((FILE *)cookie)) {
+    clearerr((FILE *)cookie);
+  }
+  return r;
 }
 
 static int
 file_write(void *cookie, const char *ptr, int size)
 {
-  return fwrite(ptr, 1, size, (FILE *)cookie);
+  int r;
+
+  r = fwrite(ptr, 1, size, (FILE *)cookie);
+  if (r < size) {
+    return -1;
+  }
+  return r;
 }
 
 static long
