@@ -159,25 +159,25 @@ xfopen(const char *filename, const char *mode)
 static int
 fd_read(void *cookie, char *ptr, int size)
 {
-  return read((int)cookie, ptr, size);
+  return read((int)(long)cookie, ptr, size);
 }
 
 static int
 fd_write(void *cookie, const char *ptr, int size)
 {
-  return write((int)cookie, ptr, size);
+  return write((int)(long)cookie, ptr, size);
 }
 
 static long
 fd_seek(void *cookie, long pos, int whence)
 {
-  return lseek((int)cookie, pos, whence);
+  return lseek((int)(long)cookie, pos, whence);
 }
 
 static int
 fd_close(void *cookie)
 {
-  return close((int)cookie);
+  return close((int)(long)cookie);
 }
 
 static XFILE *
