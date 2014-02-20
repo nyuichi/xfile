@@ -273,7 +273,6 @@ xstderr_()
 int
 xfclose(XFILE *file)
 {
-  XFILE *chain;
   int r;
 
   xfflush(file);
@@ -288,12 +287,13 @@ xfclose(XFILE *file)
     xfile_chain_ptr__ = xfile_chain_ptr__->next;
   }
   else {
-    for (chain = xfile_chain_ptr__; ; chain = chain->next) {
-      if (chain->next == file) {
-        chain->next = file->next;
-        break;
-      }
+    XFILE *chain;
+
+    chain = xfile_chain_ptr__;
+    while (chain->next != file) {
+      chain = chain->next;
     }
+    chain->next = file->next;
   }
   free(file);
   return 0;
