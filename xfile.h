@@ -37,8 +37,7 @@ extern "C" {
 # define EOF (-1)
 #endif
 
-typedef struct XFILE {
-  short flags;
+typedef struct xFILE {
   /* buffered IO */
   char *buf;
   int mode;
@@ -56,67 +55,63 @@ typedef struct XFILE {
     long (*seek)(void *, long, int);
     int (*close)(void *);
   } vtable;
-  struct XFILE *next;
-} XFILE;
-
-enum {
-  XFILE_EOF = 1,
-};
+  struct xFILE *next;
+} xFILE;
 
 /* generic file constructor */
-XFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
+xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
 
 /* buffering */
-int xsetvbuf(XFILE *, char *, int, size_t);
-int xfflush(XFILE *);
-int xffill(XFILE *);
+int xsetvbuf(xFILE *, char *, int, size_t);
+int xfflush(xFILE *);
+int xffill(xFILE *);
 
 /* resource aquisition */
 #if XFILE_FOPEN_TYPE != 0
-XFILE *xfopen(const char *, const char *);
+xFILE *xfopen(const char *, const char *);
 #endif
 #if XFILE_ENABLE_CSTDIO
-XFILE *xfpopen(FILE *);
+xFILE *xfpopen(FILE *);
 #endif
 #if XFILE_ENABLE_POSIX
-XFILE *xfdopen(int);
+xFILE *xfdopen(int);
 #endif
-XFILE *xmopen();
-int xfclose(XFILE *);
+xFILE *xmopen();
+int xfclose(xFILE *);
 
 /* direct IO with buffering */
-size_t xfread(void *, size_t, size_t, XFILE *);
-size_t xfwrite(const void *, size_t, size_t, XFILE *);
+size_t xfread(void *, size_t, size_t, xFILE *);
+size_t xfwrite(const void *, size_t, size_t, xFILE *);
 
 /* indicator positioning */
-long xfseek(XFILE *, long offset, int whence);
-long xftell(XFILE *);
-void xrewind(XFILE *);
+long xfseek(xFILE *, long offset, int whence);
+long xftell(xFILE *);
+void xrewind(xFILE *);
 
 /* character IO */
-int xfgetc(XFILE *);
-char *xfgets(char *, int, XFILE *);
-int xfputc(int, XFILE *);
-int xfputs(const char *, XFILE *);
-char xgetc(XFILE *);
+int xfgetc(xFILE *);
+char *xfgets(char *, int, xFILE *);
+int xfputc(int, xFILE *);
+int xfputs(const char *, xFILE *);
+char xgetc(xFILE *);
 char xgetchar(void);
 /* char *xgets(char *); */
-int xputc(int, XFILE *);
+int xputc(int, xFILE *);
 int xputchar(int);
 int xputs(char *);
-int xungetc(int, XFILE *);
+int xungetc(int, xFILE *);
 
 /* formatted I/O */
 int xprintf(const char *, ...);
-int xfprintf(XFILE *, const char *, ...);
-int xvfprintf(XFILE *, const char *, va_list);
+int xfprintf(xFILE *, const char *, ...);
+int xvfprintf(xFILE *, const char *, va_list);
 
 #if XFILE_STDX_TYPE != 0
 
 /* standard I/O */
-XFILE *xstdin_();
-XFILE *xstdout_();
-XFILE *xstderr_();
+xFILE *xstdin_();
+xFILE *xstdout_();
+xFILE *xstderr_();
 #define xstdin	(xstdin_())
 #define xstdout	(xstdout_())
 #define xstderr	(xstderr_())

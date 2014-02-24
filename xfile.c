@@ -12,7 +12,7 @@
 #endif
 
 static char xfile_atexit_registered__;
-static XFILE *xfile_chain_ptr__;
+static xFILE *xfile_chain_ptr__;
 
 static void
 xfile_atexit()
@@ -22,16 +22,15 @@ xfile_atexit()
   }
 }
 
-XFILE *
+xFILE *
 xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
 {
-  XFILE *file;
+  xFILE *file;
 
-  file = (XFILE *)malloc(sizeof(XFILE));
+  file = (xFILE *)malloc(sizeof(xFILE));
   if (! file) {
     return NULL;
   }
-  file->flags = 0;
   /* no buffering at the beginning */
   file->buf = NULL;
   file->mode = _IONBF;
@@ -59,7 +58,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
 }
 
 int
-xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
+xsetvbuf(xFILE *file, char *buf, int mode, size_t bufsiz)
 {
   /* FIXME: free old buf */
   assert(mode != _IONBF);       /* FIXME: support IONBF */
@@ -87,7 +86,7 @@ xsetvbuf(XFILE *file, char *buf, int mode, size_t bufsiz)
 }
 
 int
-xfflush(XFILE *file)
+xfflush(xFILE *file)
 {
   int r;
 
@@ -98,7 +97,7 @@ xfflush(XFILE *file)
 }
 
 int
-xffill(XFILE *file)
+xffill(xFILE *file)
 {
   int r;
 
@@ -149,7 +148,7 @@ file_close(void *cookie)
   return fclose((FILE *)cookie);
 }
 
-XFILE *
+xFILE *
 xfpopen(FILE *fp)
 {
   return xfunopen(fp, file_read, file_write, file_seek, file_close);
@@ -183,7 +182,7 @@ fd_close(void *cookie)
   return close((int)(long)cookie);
 }
 
-XFILE *
+xFILE *
 xfdopen(int fd)
 {
   return xfunopen((void *)(long)fd, fd_read, fd_write, fd_seek, fd_close);
@@ -193,7 +192,7 @@ xfdopen(int fd)
 
 #if XFILE_FOPEN_TYPE == 1
 
-XFILE *
+xFILE *
 xfopen(const char *filename, const char *mode)
 {
   FILE *fp;
@@ -207,7 +206,7 @@ xfopen(const char *filename, const char *mode)
 
 #elif XFILE_FOPEN_TYPE == 2
 
-XFILE *
+xFILE *
 xfopen(const char *filename, const char *mode)
 {
   int fd, flags = 0;
@@ -247,42 +246,42 @@ xfopen(const char *filename, const char *mode)
 
 #if XFILE_STDX_TYPE != 0
 
-static XFILE *xfile_stdinp__;
-static XFILE *xfile_stdoutp__;
-static XFILE *xfile_stderrp__;
+static xFILE *xfile_stdinp__;
+static xFILE *xfile_stdoutp__;
+static xFILE *xfile_stderrp__;
 
 # if XFILE_STDX_TYPE == 1
-XFILE *
+xFILE *
 xstdin_()
 {
   return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfpopen(stdin));
 }
 
-XFILE *
+xFILE *
 xstdout_()
 {
   return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfpopen(stdout));
 }
 
-XFILE *
+xFILE *
 xstderr_()
 {
   return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfpopen(stderr));
 }
 # elif XFILE_STDX_TYPE == 2
-XFILE *
+xFILE *
 xstdin_()
 {
   return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfdopen(0));
 }
 
-XFILE *
+xFILE *
 xstdout_()
 {
   return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfdopen(1));
 }
 
-XFILE *
+xFILE *
 xstderr_()
 {
   return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfdopen(2));
@@ -292,7 +291,7 @@ xstderr_()
 #endif
 
 int
-xfclose(XFILE *file)
+xfclose(xFILE *file)
 {
   int r;
 
@@ -308,7 +307,7 @@ xfclose(XFILE *file)
     xfile_chain_ptr__ = xfile_chain_ptr__->next;
   }
   else {
-    XFILE *chain;
+    xFILE *chain;
 
     chain = xfile_chain_ptr__;
     while (chain->next != file) {
@@ -321,7 +320,7 @@ xfclose(XFILE *file)
 }
 
 size_t
-xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
+xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 {
   int size, avail, eof = 0;
   char *dst = (char *)ptr;
@@ -360,7 +359,7 @@ xfread(void *ptr, size_t block, size_t nitems, XFILE *file)
 }
 
 size_t
-xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
+xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
 {
   int size, room;
   char *dst = (char *)ptr;
@@ -385,25 +384,25 @@ xfwrite(const void *ptr, size_t block, size_t nitems, XFILE *file)
 }
 
 long
-xfseek(XFILE *file, long offset, int whence)
+xfseek(xFILE *file, long offset, int whence)
 {
   return file->vtable.seek(file->vtable.cookie, offset, whence);
 }
 
 long
-xftell(XFILE *file)
+xftell(xFILE *file)
 {
   return file->vtable.seek(file->vtable.cookie, 0, SEEK_CUR);
 }
 
 void
-xrewind(XFILE *file)
+xrewind(xFILE *file)
 {
   file->vtable.seek(file->vtable.cookie, 0, SEEK_SET);
 }
 
 int
-xfgetc(XFILE *file)
+xfgetc(xFILE *file)
 {
   char buf[1];
 
@@ -413,13 +412,13 @@ xfgetc(XFILE *file)
 }
 
 int
-xungetc(int c, XFILE *file)
+xungetc(int c, xFILE *file)
 {
   return file->ub[file->ur++] = (char)c;
 }
 
 int
-xfputc(int c, XFILE *file)
+xfputc(int c, xFILE *file)
 {
   char buf[1];
 
@@ -430,7 +429,7 @@ xfputc(int c, XFILE *file)
 }
 
 int
-xfputs(const char *str, XFILE *file)
+xfputs(const char *str, xFILE *file)
 {
   int len;
 
@@ -455,7 +454,7 @@ xprintf(const char *fmt, ...)
 #endif
 
 int
-xfprintf(XFILE *stream, const char *fmt, ...)
+xfprintf(xFILE *stream, const char *fmt, ...)
 {
   va_list ap;
   int n;
@@ -470,7 +469,7 @@ xfprintf(XFILE *stream, const char *fmt, ...)
 #include <stdio.h>
 
 int
-xvfprintf(XFILE *stream, const char *fmt, va_list ap)
+xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 {
   static char buf[1024 + 1];
   int n = 0, k;
@@ -590,7 +589,7 @@ mem_close(void *cookie)
   return 0;
 }
 
-XFILE *
+xFILE *
 xmopen()
 {
   struct membuf *mem;
