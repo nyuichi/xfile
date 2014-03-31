@@ -72,7 +72,7 @@ int xffill(xFILE *);
 xFILE *xfopen(const char *, const char *);
 #endif
 #if XFILE_ENABLE_CSTDIO
-xFILE *xfpopen(FILE *);
+xFILE *xfpopen(FILE *);         /* disables xfile's buffer management */
 #endif
 #if XFILE_ENABLE_POSIX
 xFILE *xfdopen(int);

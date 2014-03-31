@@ -165,7 +165,15 @@ file_close(void *cookie)
 xFILE *
 xfpopen(FILE *fp)
 {
-  return xfunopen(fp, file_read, file_write, file_seek, file_close);
+  xFILE *file;
+
+  file = xfunopen(fp, file_read, file_write, file_seek, file_close);
+  if (! file) {
+    return NULL;
+  }
+  xsetvbuf(file, NULL, _IONBF, 0);
+
+  return file;
 }
 
 #endif
@@ -210,12 +218,21 @@ xFILE *
 xfopen(const char *filename, const char *mode)
 {
   FILE *fp;
+  xFILE *file;
 
   fp = fopen(filename, mode);
   if (! fp) {
     return NULL;
   }
-  return xfpopen(fp);
+  setvbuf(fp, NULL, _IONBF, 0);
+
+  file = xfpopen(fp);
+  if (! file) {
+    return NULL;
+  }
+  xsetvbuf(file, NULL, _IOFBF, 0);
+
+  return file;
 }
 
 #elif XFILE_FOPEN_TYPE == 2
