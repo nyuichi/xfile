@@ -40,6 +40,7 @@ extern "C" {
 typedef struct xFILE {
   /* buffered IO */
   char *buf;
+  char ownbuf;
   int mode;
   int bufsiz;
   char *s, *c, *e;

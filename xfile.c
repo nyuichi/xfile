@@ -33,6 +33,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   }
   /* no buffering at the beginning */
   file->buf = NULL;
+  file->ownbuf = 0;
   file->mode = _IONBF;
   file->bufsiz = 0;
   file->us = 3;
@@ -60,22 +61,28 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
 int
 xsetvbuf(xFILE *file, char *buf, int mode, size_t bufsiz)
 {
-  /* FIXME: free old buf */
   assert(mode != _IOLBF);       /* FIXME: support IOLBF */
+
+  if (file->ownbuf) {
+    free(file->buf);
+  }
 
   file->mode = mode;
   if (buf) {
     file->buf = buf;
+    file->ownbuf = 0;
     file->bufsiz = bufsiz;
   }
   else {
     if (mode == _IONBF) {
       file->buf = NULL;
+      file->ownbuf = 0;
       file->bufsiz = 0;
     }
     else {
       assert(bufsiz == 0);      /* TODO allow custom buffer size? */
       file->buf = (char *)malloc(BUFSIZ);
+      file->ownbuf = 1;
       file->bufsiz = BUFSIZ;
     }
   }
