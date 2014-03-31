@@ -61,7 +61,6 @@ int
 xsetvbuf(xFILE *file, char *buf, int mode, size_t bufsiz)
 {
   /* FIXME: free old buf */
-  assert(mode != _IONBF);       /* FIXME: support IONBF */
   assert(mode != _IOLBF);       /* FIXME: support IOLBF */
 
   file->mode = mode;
@@ -90,6 +89,10 @@ xfflush(xFILE *file)
 {
   int r;
 
+  if (file->mode == _IONBF) {
+    return 0;
+  }
+
   while ((r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s)) > 0) {
     file->c -= r;
   }
@@ -100,6 +103,10 @@ int
 xffill(xFILE *file)
 {
   int r;
+
+  if (file->mode == _IONBF) {
+    return 0;
+  }
 
   while ((r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c)) > 0) {
     file->c += r;
@@ -334,6 +341,10 @@ xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
       return block * nitems;
   }
 
+  if (file->mode == _IONBF) {
+    return file->vtable.read(file->vtable.cookie, ptr, size);
+  }
+
   while (1) {
     avail = file->c - file->s;
     if (size <= avail) {
@@ -364,7 +375,11 @@ xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
   int size, room;
   char *dst = (char *)ptr;
 
-  size = block * nitems;               /* TODO: optimize block write */
+  size = block * nitems;        /* TODO: optimize block write */
+
+  if (file->mode == _IONBF) {
+    return file->vtable.write(file->vtable.cookie, ptr, size);
+  }
 
   while (1) {
     room = file->e - file->c;
