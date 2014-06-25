@@ -65,23 +65,28 @@ xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 {
   char *dst = (char *)ptr;
   char buf[block];
-  size_t i;
+  size_t i, offset;
   int n;
 
   for (i = 0; i < nitems; ++i) {
-    n = file->vtable.read(file->vtable.cookie, buf, block);
-    if (n < 0) {
-      file->flags |= XF_ERR;
-      break;
+    offset = 0;
+    while (offset < block) {
+      n = file->vtable.read(file->vtable.cookie, buf + offset, block - offset);
+      if (n < 0) {
+        file->flags |= XF_ERR;
+        goto exit;
+      }
+      if (n == 0) {
+        file->flags |= XF_EOF;
+        goto exit;
+      }
+      offset += n;
     }
-    if (n == 0) {
-      file->flags |= XF_EOF;
-      break;
-    }
-    memcpy(dst, buf, n);
-    dst += n;
+    memcpy(dst, buf, block);
+    dst += block;
   }
 
+ exit:
   return i;
 }
 
@@ -89,18 +94,23 @@ size_t
 xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
 {
   char *dst = (char *)ptr;
-  size_t i;
+  size_t i, offset;
   int n;
 
   for (i = 0; i < nitems; ++i) {
-    n = file->vtable.write(file->vtable.cookie, dst, block);
-    if (n < 0) {
-      file->flags |= XF_ERR;
-      break;
+    offset = 0;
+    while (offset < block) {
+      n = file->vtable.write(file->vtable.cookie, dst + offset, block - offset);
+      if (n < 0) {
+        file->flags |= XF_ERR;
+        goto exit;
+      }
+      offset += n;
     }
-    dst += n;
+    dst += block;
   }
 
+ exit:
   return i;
 }
 
