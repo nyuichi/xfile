@@ -147,6 +147,10 @@ xfgetc(xFILE *file)
 
   xfread(buf, 1, 1, file);
 
+  if (xfeof(file)) {
+    return EOF;
+  }
+
   return buf[0];
 }
 
