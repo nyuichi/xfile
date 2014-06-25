@@ -165,6 +165,12 @@ xfgetc(xFILE *file)
 }
 
 int
+xgetchar(void)
+{
+  return xfgetc(xstdin);
+}
+
+int
 xfputc(int c, xFILE *file)
 {
   char buf[1];
@@ -173,6 +179,12 @@ xfputc(int c, xFILE *file)
   xfwrite(buf, 1, 1, file);
 
   return buf[0];
+}
+
+int
+xputchar(int c)
+{
+  return xfputc(c, xstdout);
 }
 
 int

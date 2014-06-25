@@ -17,7 +17,7 @@ test_memio(void)
 
   /* input */
   while ((c = xfgetc(mem)) != -1) {
-    putchar(c);
+    xputchar(c);
   }
   puts(" equals ?: \n42 hello A\n");
 

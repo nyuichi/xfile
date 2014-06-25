@@ -50,8 +50,7 @@ char *xfgets(char *, int, xFILE *);
 int xfputc(int, xFILE *);
 int xfputs(const char *, xFILE *);
 char xgetc(xFILE *);
-char xgetchar(void);
-/* char *xgets(char *); */
+int xgetchar(void);
 int xputc(int, xFILE *);
 int xputchar(int);
 int xputs(char *);
