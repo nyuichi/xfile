@@ -4,13 +4,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if XFILE_ENABLE_POSIX
-# include <unistd.h>
-# include <sys/types.h>
-# include <sys/stat.h>
-# include <fcntl.h>
-#endif
-
 xFILE *
 xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
 {
@@ -102,8 +95,6 @@ xffill(xFILE *file)
   return r;                     /* 0 on success, -1 on error */
 }
 
-#if XFILE_ENABLE_CSTDIO
-
 static int
 file_read(void *cookie, char *ptr, int size)
 {
@@ -157,44 +148,6 @@ xfpopen(FILE *fp)
   return file;
 }
 
-#endif
-
-#if XFILE_ENABLE_POSIX
-
-static int
-fd_read(void *cookie, char *ptr, int size)
-{
-  return read((int)(long)cookie, ptr, size);
-}
-
-static int
-fd_write(void *cookie, const char *ptr, int size)
-{
-  return write((int)(long)cookie, ptr, size);
-}
-
-static long
-fd_seek(void *cookie, long pos, int whence)
-{
-  return lseek((int)(long)cookie, pos, whence);
-}
-
-static int
-fd_close(void *cookie)
-{
-  return close((int)(long)cookie);
-}
-
-xFILE *
-xfdopen(int fd)
-{
-  return xfunopen((void *)(long)fd, fd_read, fd_write, fd_seek, fd_close);
-}
-
-#endif
-
-#if XFILE_FOPEN_TYPE == 1
-
 xFILE *
 xfopen(const char *filename, const char *mode)
 {
@@ -216,53 +169,10 @@ xfopen(const char *filename, const char *mode)
   return file;
 }
 
-#elif XFILE_FOPEN_TYPE == 2
-
-xFILE *
-xfopen(const char *filename, const char *mode)
-{
-  int fd, flags = 0;
-
-  switch (*mode++) {
-  case 'r':
-    if (*mode == '+') {
-      flags = O_RDWR;
-    } else {
-      flags = O_RDONLY;
-    }
-    break;
-  case 'w':
-    if (*mode == '+') {
-      flags = O_WRONLY | O_CREAT | O_TRUNC;
-    } else {
-      flags = O_RDWR | O_CREAT | O_TRUNC;
-    }
-    break;
-  case 'a':
-    if (*mode == '+') {
-      flags = O_WRONLY | O_CREAT | O_APPEND;
-    } else {
-      flags = O_RDWR | O_CREAT | O_APPEND;
-    }
-    break;
-  }
-
-  fd = open(filename, flags);
-  if (fd == -1) {
-    return NULL;
-  }
-  return xfdopen(fd);
-}
-
-#endif
-
-#if XFILE_STDX_TYPE != 0
-
 static xFILE *xfile_stdinp__;
 static xFILE *xfile_stdoutp__;
 static xFILE *xfile_stderrp__;
 
-# if XFILE_STDX_TYPE == 1
 xFILE *
 xstdin_()
 {
@@ -280,27 +190,6 @@ xstderr_()
 {
   return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfpopen(stderr));
 }
-# elif XFILE_STDX_TYPE == 2
-xFILE *
-xstdin_()
-{
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfdopen(0));
-}
-
-xFILE *
-xstdout_()
-{
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfdopen(1));
-}
-
-xFILE *
-xstderr_()
-{
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfdopen(2));
-}
-# endif
-
-#endif
 
 int
 xfclose(xFILE *file)
@@ -446,7 +335,6 @@ xfputs(const char *str, xFILE *file)
   return 0;
 }
 
-#if XFILE_STDX_TYPE != 0
 int
 xprintf(const char *fmt, ...)
 {
@@ -458,7 +346,6 @@ xprintf(const char *fmt, ...)
   va_end(ap);
   return n;
 }
-#endif
 
 int
 xfprintf(xFILE *stream, const char *fmt, ...)
@@ -471,9 +358,6 @@ xfprintf(xFILE *stream, const char *fmt, ...)
   va_end(ap);
   return n;
 }
-
-/* FIXME! */
-#include <stdio.h>
 
 int
 xvfprintf(xFILE *stream, const char *fmt, va_list ap)
