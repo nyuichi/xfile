@@ -315,7 +315,7 @@ mem_read(void *cookie, char *ptr, int size)
   mem = (struct membuf *)cookie;
 
   size = min(size, mem->end - mem->pos);
-  memcpy(ptr, mem->buf, size);
+  memcpy(ptr, mem->buf + mem->pos, size);
   mem->pos += size;
   return size;
 }
