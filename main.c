@@ -13,11 +13,13 @@ test_memio(void)
   /* output */
   xfprintf(mem, "%d %s %c\n", 42, "hello", 'A');
 
+  xrewind(mem);
+
   /* input */
   while ((c = xfgetc(mem)) != -1) {
     putchar(c);
   }
-  puts(" equals '42 hello A\n'?");
+  puts(" equals ?: \n42 hello A\n");
 
   assert(xfclose(mem) == 0);
 }
