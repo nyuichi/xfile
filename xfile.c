@@ -11,17 +11,6 @@
 # include <fcntl.h>
 #endif
 
-static char xfile_atexit_registered__;
-static xFILE *xfile_chain_ptr__;
-
-static void
-xfile_atexit()
-{
-  while (xfile_chain_ptr__) {
-    xfclose(xfile_chain_ptr__);
-  }
-}
-
 xFILE *
 xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
 {
@@ -44,16 +33,8 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   file->vtable.write = write;
   file->vtable.seek = seek;
   file->vtable.close = close;
-  /* chain */
-  file->next = xfile_chain_ptr__;
-  xfile_chain_ptr__ = file;
 
   xsetvbuf(file, (char *)NULL, _IOFBF, 0);
-
-  if (! xfile_atexit_registered__) {
-    xfile_atexit_registered__ = 1;
-    atexit(xfile_atexit);
-  }
 
   return file;
 }
@@ -333,19 +314,6 @@ xfclose(xFILE *file)
     return -1;
   }
 
-  /* unchain */
-  if (xfile_chain_ptr__ == file) {
-    xfile_chain_ptr__ = xfile_chain_ptr__->next;
-  }
-  else {
-    xFILE *chain;
-
-    chain = xfile_chain_ptr__;
-    while (chain->next != file) {
-      chain = chain->next;
-    }
-    chain->next = file->next;
-  }
   free(file);
   return 0;
 }
