@@ -347,51 +347,15 @@ xfprintf(xFILE *stream, const char *fmt, ...)
 int
 xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 {
-  static char buf[1024 + 1];
-  int n = 0, k;
-  char c, *str;
+  char buf[vsnprintf(NULL, 0, fmt, ap) + 1];
 
-  while ((c = *fmt++)) {
-    if (c == '%') {
-      if (! (c = *fmt++))
-        break;
-      switch (c) {
-      case '%':
-        xfputs("%", stream);
-        n++;
-        break;
-      case 'd':
-        n += snprintf(buf, 1024, "%d", va_arg(ap, int));
-        xfputs(buf, stream);
-        break;
-      case 'c':
-        n += snprintf(buf, 1024, "%c", va_arg(ap, int));
-        xfputs(buf, stream);
-        break;
-      case 'f':
-        n += snprintf(buf, 1024, "%f", va_arg(ap, double));
-        xfputs(buf, stream);
-        break;
-      case 's':
-        str = va_arg(ap, char *);
-        do {
-          k = snprintf(buf, 1024, "%s", str);
-          xfputs(buf, stream);
-          n += k;
-        } while (k >= 1024);
-        break;
-      case 'p':
-        n += snprintf(buf, 1024, "%p", va_arg(ap, void *));
-        xfputs(buf, stream);
-        break;
-      }
-    }
-    else {
-      xfputc(c, stream);
-      n++;
-    }
+  vsnprintf(buf, sizeof buf, fmt, ap);
+
+  if (xfwrite(buf, sizeof buf, 1, stream) < 1) {
+    return -1;
   }
-  return n;
+
+  return sizeof buf;
 }
 
 struct membuf {
