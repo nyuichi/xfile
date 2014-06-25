@@ -18,8 +18,6 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   file->ownbuf = 0;
   file->mode = _IONBF;
   file->bufsiz = 0;
-  file->us = 3;
-  file->ur = 0;
   /* set vtable */
   file->vtable.cookie = cookie;
   file->vtable.read = read;
@@ -215,13 +213,6 @@ xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 
   size = block * nitems;        /* TODO: optimize block read */
 
-  /* take care of ungetc buf */
-  while (file->ur > 0) {
-    *dst++ = file->ub[--file->ur];
-    if (--size == 0)
-      return block * nitems;
-  }
-
   if (file->mode == _IONBF) {
     return file->vtable.read(file->vtable.cookie, ptr, size);
   }
@@ -305,12 +296,6 @@ xfgetc(xFILE *file)
   xfread(buf, 1, 1, file);
 
   return buf[0];
-}
-
-int
-xungetc(int c, xFILE *file)
-{
-  return file->ub[file->ur++] = (char)c;
 }
 
 int

@@ -16,10 +16,6 @@ typedef struct xFILE {
   int mode;
   int bufsiz;
   char *s, *c, *e;
-  /* ungetc buf */
-  char ub[3];
-  int us;
-  int ur;
   /* operators */
   struct {
     void *cookie;
@@ -64,7 +60,6 @@ char xgetchar(void);
 int xputc(int, xFILE *);
 int xputchar(int);
 int xputs(char *);
-int xungetc(int, xFILE *);
 
 /* formatted I/O */
 int xprintf(const char *, ...);
