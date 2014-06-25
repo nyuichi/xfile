@@ -287,7 +287,7 @@ unpack(void *cookie)
 static int
 file_read(void *cookie, char *ptr, int size)
 {
-  FILE *file = unpack(cookie);;
+  FILE *file = unpack(cookie);
   int r;
 
   r = fread(ptr, 1, size, file);
