@@ -379,7 +379,7 @@ mem_write(void *cookie, const char *ptr, int size)
 
   mem = (struct membuf *)cookie;
 
-  if (mem->pos + size > mem->capa) {
+  if (mem->pos + size >= mem->capa) {
     mem->capa = (mem->pos + size) * 2;
     mem->buf = realloc(mem->buf, mem->capa);
   }
