@@ -10,6 +10,7 @@ extern "C" {
 #include <stdio.h>
 
 typedef struct {
+  char ungot;
   int flags;
   /* operators */
   struct {
@@ -54,6 +55,7 @@ int xgetchar(void);
 int xputc(int, xFILE *);
 int xputchar(int);
 int xputs(char *);
+int xungetc(int, xFILE *);
 
 /* formatted I/O */
 int xprintf(const char *, ...);

@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define min(a,b) (((a)>(b))?(b):(a))
+#define max(a,b) (((a)<(b))?(b):(a))
+
 #define XF_EOF 1
 #define XF_ERR 2
 
@@ -16,6 +19,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   if (! file) {
     return NULL;
   }
+  file->ungot = -1;
   file->flags = 0;
   /* set vtable */
   file->vtable.cookie = cookie;
@@ -70,6 +74,11 @@ xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 
   for (i = 0; i < nitems; ++i) {
     offset = 0;
+    if (file->ungot != -1 && block > 0) {
+      buf[0] = file->ungot;
+      offset += 1;
+      file->ungot = -1;
+    }
     while (offset < block) {
       n = file->vtable.read(file->vtable.cookie, buf + offset, block - offset);
       if (n < 0) {
@@ -117,19 +126,20 @@ xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
 long
 xfseek(xFILE *file, long offset, int whence)
 {
+  file->ungot = -1;
   return file->vtable.seek(file->vtable.cookie, offset, whence);
 }
 
 long
 xftell(xFILE *file)
 {
-  return file->vtable.seek(file->vtable.cookie, 0, SEEK_CUR);
+  return xfseek(file, 0, SEEK_CUR);
 }
 
 void
 xrewind(xFILE *file)
 {
-  file->vtable.seek(file->vtable.cookie, 0, SEEK_SET);
+  xfseek(file, 0, SEEK_SET);
 }
 
 void
@@ -162,6 +172,16 @@ xfgetc(xFILE *file)
   }
 
   return buf[0];
+}
+
+int
+xungetc(int c, xFILE *file)
+{
+  file->ungot = c;
+  if (c != EOF) {
+    file->flags &= ~XF_EOF;
+  }
+  return c;
 }
 
 int
@@ -313,9 +333,9 @@ xfpopen(FILE *fp)
 
 #define FILE_VTABLE file_read, file_write, file_seek, file_close
 
-static xFILE xfile_stdin  = { 0, { (void *)0, FILE_VTABLE } };
-static xFILE xfile_stdout = { 0, { (void *)1, FILE_VTABLE } };
-static xFILE xfile_stderr = { 0, { (void *)-1, FILE_VTABLE } };
+static xFILE xfile_stdin  = { -1, 0, { (void *)0, FILE_VTABLE } };
+static xFILE xfile_stdout = { -1, 0, { (void *)1, FILE_VTABLE } };
+static xFILE xfile_stderr = { -1, 0, { (void *)-1, FILE_VTABLE } };
 
 xFILE *xstdin  = &xfile_stdin;
 xFILE *xstdout = &xfile_stdout;
@@ -325,9 +345,6 @@ struct membuf {
   char *buf;
   long pos, end, capa;
 };
-
-#define min(a,b) (((a)>(b))?(b):(a))
-#define max(a,b) (((a)<(b))?(b):(a))
 
 static int
 mem_read(void *cookie, char *ptr, int size)
