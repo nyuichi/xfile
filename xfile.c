@@ -4,26 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
-#if XFILE_ENABLE_POSIX
-# include <unistd.h>
-# include <sys/types.h>
-# include <sys/stat.h>
-# include <fcntl.h>
-#endif
+#define min(a,b) (((a)>(b))?(b):(a))
+#define max(a,b) (((a)<(b))?(b):(a))
 
-static char xfile_atexit_registered__;
-static xFILE *xfile_chain_ptr__;
-
-static void
-xfile_atexit()
-{
-  while (xfile_chain_ptr__) {
-    xfclose(xfile_chain_ptr__);
-  }
-}
+#define XF_EOF 1
+#define XF_ERR 2
 
 xFILE *
-xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
+xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*flush)(void *), int (*close)(void *))
 {
   xFILE *file;
 
@@ -31,188 +19,18 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   if (! file) {
     return NULL;
   }
-  /* no buffering at the beginning */
-  file->buf = NULL;
-  file->ownbuf = 0;
-  file->mode = _IONBF;
-  file->bufsiz = 0;
-  file->us = 3;
-  file->ur = 0;
+  file->ungot = -1;
+  file->flags = 0;
   /* set vtable */
   file->vtable.cookie = cookie;
   file->vtable.read = read;
   file->vtable.write = write;
   file->vtable.seek = seek;
+  file->vtable.flush = flush;
   file->vtable.close = close;
-  /* chain */
-  file->next = xfile_chain_ptr__;
-  xfile_chain_ptr__ = file;
-
-  xsetvbuf(file, (char *)NULL, _IOFBF, 0);
-
-  if (! xfile_atexit_registered__) {
-    xfile_atexit_registered__ = 1;
-    atexit(xfile_atexit);
-  }
 
   return file;
 }
-
-int
-xsetvbuf(xFILE *file, char *buf, int mode, size_t bufsiz)
-{
-  assert(mode != _IOLBF);       /* FIXME: support IOLBF */
-
-  if (file->ownbuf) {
-    free(file->buf);
-  }
-
-  file->mode = mode;
-  if (buf) {
-    file->buf = buf;
-    file->ownbuf = 0;
-    file->bufsiz = bufsiz;
-  }
-  else {
-    if (mode == _IONBF) {
-      file->buf = NULL;
-      file->ownbuf = 0;
-      file->bufsiz = 0;
-    }
-    else {
-      assert(bufsiz == 0);      /* TODO allow custom buffer size? */
-      file->buf = (char *)malloc(BUFSIZ);
-      file->ownbuf = 1;
-      file->bufsiz = BUFSIZ;
-    }
-  }
-  file->s = file->c = file->buf;
-  file->e = file->buf + file->bufsiz;
-  return 0;
-}
-
-int
-xfflush(xFILE *file)
-{
-  int r;
-
-  if (file->mode == _IONBF) {
-    return 0;
-  }
-
-  while ((r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s)) > 0) {
-    file->c -= r;
-  }
-  return r;                     /* 0 on success, -1 on error */
-}
-
-int
-xffill(xFILE *file)
-{
-  int r;
-
-  if (file->mode == _IONBF) {
-    return 0;
-  }
-
-  while ((r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c)) > 0) {
-    file->c += r;
-  }
-  return r;                     /* 0 on success, -1 on error */
-}
-
-#if XFILE_ENABLE_CSTDIO
-
-static int
-file_read(void *cookie, char *ptr, int size)
-{
-  int r;
-
-  r = fread(ptr, 1, size, (FILE *)cookie);
-  if (r < size && ferror((FILE *)cookie)) {
-    return -1;
-  }
-  if (r == 0 && feof((FILE *)cookie)) {
-    clearerr((FILE *)cookie);
-  }
-  return r;
-}
-
-static int
-file_write(void *cookie, const char *ptr, int size)
-{
-  int r;
-
-  r = fwrite(ptr, 1, size, (FILE *)cookie);
-  if (r < size) {
-    return -1;
-  }
-  return r;
-}
-
-static long
-file_seek(void *cookie, long pos, int whence)
-{
-  return fseek((FILE *)cookie, pos, whence);
-}
-
-static int
-file_close(void *cookie)
-{
-  return fclose((FILE *)cookie);
-}
-
-xFILE *
-xfpopen(FILE *fp)
-{
-  xFILE *file;
-
-  file = xfunopen(fp, file_read, file_write, file_seek, file_close);
-  if (! file) {
-    return NULL;
-  }
-  xsetvbuf(file, NULL, _IONBF, 0);
-
-  return file;
-}
-
-#endif
-
-#if XFILE_ENABLE_POSIX
-
-static int
-fd_read(void *cookie, char *ptr, int size)
-{
-  return read((int)(long)cookie, ptr, size);
-}
-
-static int
-fd_write(void *cookie, const char *ptr, int size)
-{
-  return write((int)(long)cookie, ptr, size);
-}
-
-static long
-fd_seek(void *cookie, long pos, int whence)
-{
-  return lseek((int)(long)cookie, pos, whence);
-}
-
-static int
-fd_close(void *cookie)
-{
-  return close((int)(long)cookie);
-}
-
-xFILE *
-xfdopen(int fd)
-{
-  return xfunopen((void *)(long)fd, fd_read, fd_write, fd_seek, fd_close);
-}
-
-#endif
-
-#if XFILE_FOPEN_TYPE == 1
 
 xFILE *
 xfopen(const char *filename, const char *mode)
@@ -224,220 +42,129 @@ xfopen(const char *filename, const char *mode)
   if (! fp) {
     return NULL;
   }
-  setvbuf(fp, NULL, _IONBF, 0);
 
   file = xfpopen(fp);
   if (! file) {
     return NULL;
   }
-  xsetvbuf(file, NULL, _IOFBF, 0);
 
   return file;
 }
-
-#elif XFILE_FOPEN_TYPE == 2
-
-xFILE *
-xfopen(const char *filename, const char *mode)
-{
-  int fd, flags = 0;
-
-  switch (*mode++) {
-  case 'r':
-    if (*mode == '+') {
-      flags = O_RDWR;
-    } else {
-      flags = O_RDONLY;
-    }
-    break;
-  case 'w':
-    if (*mode == '+') {
-      flags = O_WRONLY | O_CREAT | O_TRUNC;
-    } else {
-      flags = O_RDWR | O_CREAT | O_TRUNC;
-    }
-    break;
-  case 'a':
-    if (*mode == '+') {
-      flags = O_WRONLY | O_CREAT | O_APPEND;
-    } else {
-      flags = O_RDWR | O_CREAT | O_APPEND;
-    }
-    break;
-  }
-
-  fd = open(filename, flags);
-  if (fd == -1) {
-    return NULL;
-  }
-  return xfdopen(fd);
-}
-
-#endif
-
-#if XFILE_STDX_TYPE != 0
-
-static xFILE *xfile_stdinp__;
-static xFILE *xfile_stdoutp__;
-static xFILE *xfile_stderrp__;
-
-# if XFILE_STDX_TYPE == 1
-xFILE *
-xstdin_()
-{
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfpopen(stdin));
-}
-
-xFILE *
-xstdout_()
-{
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfpopen(stdout));
-}
-
-xFILE *
-xstderr_()
-{
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfpopen(stderr));
-}
-# elif XFILE_STDX_TYPE == 2
-xFILE *
-xstdin_()
-{
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfdopen(0));
-}
-
-xFILE *
-xstdout_()
-{
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfdopen(1));
-}
-
-xFILE *
-xstderr_()
-{
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfdopen(2));
-}
-# endif
-
-#endif
 
 int
 xfclose(xFILE *file)
 {
   int r;
 
-  xfflush(file);
-
   r = file->vtable.close(file->vtable.cookie);
   if (r == EOF) {
     return -1;
   }
 
-  /* unchain */
-  if (xfile_chain_ptr__ == file) {
-    xfile_chain_ptr__ = xfile_chain_ptr__->next;
-  }
-  else {
-    xFILE *chain;
-
-    chain = xfile_chain_ptr__;
-    while (chain->next != file) {
-      chain = chain->next;
-    }
-    chain->next = file->next;
-  }
   free(file);
   return 0;
+}
+
+int
+xfflush(xFILE *file)
+{
+  return file->vtable.flush(file->vtable.cookie);
 }
 
 size_t
 xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 {
-  int size, avail, eof = 0;
   char *dst = (char *)ptr;
+  char buf[block];
+  size_t i, offset;
+  int n;
 
-  size = block * nitems;        /* TODO: optimize block read */
-
-  /* take care of ungetc buf */
-  while (file->ur > 0) {
-    *dst++ = file->ub[--file->ur];
-    if (--size == 0)
-      return block * nitems;
-  }
-
-  if (file->mode == _IONBF) {
-    return file->vtable.read(file->vtable.cookie, ptr, size);
-  }
-
-  while (1) {
-    avail = file->c - file->s;
-    if (size <= avail) {
-      memcpy(dst, file->s, size);
-      memmove(file->s, file->s + size, avail - size);
-      file->c -= size;
-      return block * nitems;
+  for (i = 0; i < nitems; ++i) {
+    offset = 0;
+    if (file->ungot != -1 && block > 0) {
+      buf[0] = file->ungot;
+      offset += 1;
+      file->ungot = -1;
     }
-    else {
-      memcpy(dst, file->s, avail);
-      file->c = file->s;
-      size -= avail;
-      dst += avail;
-      if (eof) {
-        *dst = EOF;
-        return block * nitems - size;
+    while (offset < block) {
+      n = file->vtable.read(file->vtable.cookie, buf + offset, block - offset);
+      if (n < 0) {
+        file->flags |= XF_ERR;
+        goto exit;
       }
-      xffill(file);
-      if (file->c - file->s == 0)
-        eof = 1;
+      if (n == 0) {
+        file->flags |= XF_EOF;
+        goto exit;
+      }
+      offset += n;
     }
+    memcpy(dst, buf, block);
+    dst += block;
   }
+
+ exit:
+  return i;
 }
 
 size_t
 xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
 {
-  int size, room;
   char *dst = (char *)ptr;
+  size_t i, offset;
+  int n;
 
-  size = block * nitems;        /* TODO: optimize block write */
-
-  if (file->mode == _IONBF) {
-    return file->vtable.write(file->vtable.cookie, ptr, size);
+  for (i = 0; i < nitems; ++i) {
+    offset = 0;
+    while (offset < block) {
+      n = file->vtable.write(file->vtable.cookie, dst + offset, block - offset);
+      if (n < 0) {
+        file->flags |= XF_ERR;
+        goto exit;
+      }
+      offset += n;
+    }
+    dst += block;
   }
 
-  while (1) {
-    room = file->e - file->c;
-    if (room < size) {
-      memcpy(file->c, dst, room);
-      file->c = file->e;
-      size -= room;
-      dst += room;
-      xfflush(file);            /* TODO error handling */
-    }
-    else {
-      memcpy(file->c, dst, size);
-      file->c += size;
-      return block * nitems;
-    }
-  }
+ exit:
+  return i;
 }
 
 long
 xfseek(xFILE *file, long offset, int whence)
 {
+  file->ungot = -1;
   return file->vtable.seek(file->vtable.cookie, offset, whence);
 }
 
 long
 xftell(xFILE *file)
 {
-  return file->vtable.seek(file->vtable.cookie, 0, SEEK_CUR);
+  return xfseek(file, 0, SEEK_CUR);
 }
 
 void
 xrewind(xFILE *file)
 {
-  file->vtable.seek(file->vtable.cookie, 0, SEEK_SET);
+  xfseek(file, 0, SEEK_SET);
+}
+
+void
+xclearerr(xFILE *file)
+{
+  file->flags = 0;
+}
+
+int
+xfeof(xFILE *file)
+{
+  return file->flags & XF_EOF;
+}
+
+int
+xferror(xFILE *file)
+{
+  return file->flags & XF_ERR;
 }
 
 int
@@ -447,13 +174,27 @@ xfgetc(xFILE *file)
 
   xfread(buf, 1, 1, file);
 
+  if (xfeof(file)) {
+    return EOF;
+  }
+
   return buf[0];
 }
 
 int
 xungetc(int c, xFILE *file)
 {
-  return file->ub[file->ur++] = (char)c;
+  file->ungot = c;
+  if (c != EOF) {
+    file->flags &= ~XF_EOF;
+  }
+  return c;
+}
+
+int
+xgetchar(void)
+{
+  return xfgetc(xstdin);
 }
 
 int
@@ -468,6 +209,12 @@ xfputc(int c, xFILE *file)
 }
 
 int
+xputchar(int c)
+{
+  return xfputc(c, xstdout);
+}
+
+int
 xfputs(const char *str, xFILE *file)
 {
   int len;
@@ -478,7 +225,6 @@ xfputs(const char *str, xFILE *file)
   return 0;
 }
 
-#if XFILE_STDX_TYPE != 0
 int
 xprintf(const char *fmt, ...)
 {
@@ -490,7 +236,6 @@ xprintf(const char *fmt, ...)
   va_end(ap);
   return n;
 }
-#endif
 
 int
 xfprintf(xFILE *stream, const char *fmt, ...)
@@ -504,66 +249,115 @@ xfprintf(xFILE *stream, const char *fmt, ...)
   return n;
 }
 
-/* FIXME! */
-#include <stdio.h>
-
 int
 xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 {
-  static char buf[1024 + 1];
-  int n = 0, k;
-  char c, *str;
+  va_list ap2;
 
-  while ((c = *fmt++)) {
-    if (c == '%') {
-      if (! (c = *fmt++))
-        break;
-      switch (c) {
-      case '%':
-        xfputs("%", stream);
-        n++;
-        break;
-      case 'd':
-        n += snprintf(buf, 1024, "%d", va_arg(ap, int));
-        xfputs(buf, stream);
-        break;
-      case 'c':
-        n += snprintf(buf, 1024, "%c", va_arg(ap, int));
-        xfputs(buf, stream);
-        break;
-      case 'f':
-        n += snprintf(buf, 1024, "%f", va_arg(ap, double));
-        xfputs(buf, stream);
-        break;
-      case 's':
-        str = va_arg(ap, char *);
-        do {
-          k = snprintf(buf, 1024, "%s", str);
-          xfputs(buf, stream);
-          n += k;
-        } while (k >= 1024);
-        break;
-      case 'p':
-        n += snprintf(buf, 1024, "%p", va_arg(ap, void *));
-        xfputs(buf, stream);
-        break;
-      }
+  va_copy(ap2, ap);
+  {
+    char buf[vsnprintf(NULL, 0, fmt, ap2)];
+
+    vsnprintf(buf, sizeof buf + 1, fmt, ap);
+
+    if (xfwrite(buf, sizeof buf, 1, stream) < 1) {
+      return -1;
     }
-    else {
-      xfputc(c, stream);
-      n++;
-    }
+
+    va_end(ap2);
+    return sizeof buf;
   }
-  return n;
 }
+
+/*
+ * Derieved xFILE Classes
+ */
+
+static FILE *
+unpack(void *cookie)
+{
+  switch ((long)cookie) {
+  default: return cookie;
+  case 0:  return stdin;
+  case 1:  return stdout;
+  case -1: return stderr;
+  }
+}
+
+static int
+file_read(void *cookie, char *ptr, int size)
+{
+  FILE *file = unpack(cookie);
+  int r;
+
+  r = fread(ptr, 1, size, file);
+  if (r < size && ferror(file)) {
+    return -1;
+  }
+  if (r == 0 && feof(file)) {
+    clearerr(file);
+  }
+  return r;
+}
+
+static int
+file_write(void *cookie, const char *ptr, int size)
+{
+  FILE *file = unpack(cookie);
+  int r;
+
+  r = fwrite(ptr, 1, size, file);
+  if (r < size) {
+    return -1;
+  }
+  return r;
+}
+
+static long
+file_seek(void *cookie, long pos, int whence)
+{
+  return fseek(unpack(cookie), pos, whence);
+}
+
+static int
+file_flush(void *cookie)
+{
+  return fflush(unpack(cookie));
+}
+
+static int
+file_close(void *cookie)
+{
+  return fclose(unpack(cookie));
+}
+
+xFILE *
+xfpopen(FILE *fp)
+{
+  xFILE *file;
+
+  file = xfunopen(fp, file_read, file_write, file_seek, file_flush, file_close);
+  if (! file) {
+    return NULL;
+  }
+
+  return file;
+}
+
+#define FILE_VTABLE file_read, file_write, file_seek, file_flush, file_close
+
+static xFILE xfile_stdin  = { -1, 0, { (void *)0, FILE_VTABLE } };
+static xFILE xfile_stdout = { -1, 0, { (void *)1, FILE_VTABLE } };
+static xFILE xfile_stderr = { -1, 0, { (void *)-1, FILE_VTABLE } };
+
+xFILE *xstdin  = &xfile_stdin;
+xFILE *xstdout = &xfile_stdout;
+xFILE *xstderr = &xfile_stderr;
 
 struct membuf {
   char *buf;
   long pos, end, capa;
 };
-
-#define min(a,b) (((a)>(b))?(b):(a))
-#define max(a,b) (((a)<(b))?(b):(a))
 
 static int
 mem_read(void *cookie, char *ptr, int size)
@@ -573,7 +367,7 @@ mem_read(void *cookie, char *ptr, int size)
   mem = (struct membuf *)cookie;
 
   size = min(size, mem->end - mem->pos);
-  memcpy(ptr, mem->buf, size);
+  memcpy(ptr, mem->buf + mem->pos, size);
   mem->pos += size;
   return size;
 }
@@ -585,7 +379,7 @@ mem_write(void *cookie, const char *ptr, int size)
 
   mem = (struct membuf *)cookie;
 
-  if (mem->pos + size > mem->capa) {
+  if (mem->pos + size >= mem->capa) {
     mem->capa = (mem->pos + size) * 2;
     mem->buf = realloc(mem->buf, mem->capa);
   }
@@ -618,6 +412,14 @@ mem_seek(void *cookie, long pos, int whence)
 }
 
 static int
+mem_flush(void *cookie)
+{
+  (void)cookie;
+
+  return 0;
+}
+
+static int
 mem_close(void *cookie)
 {
   struct membuf *mem;
@@ -639,5 +441,5 @@ xmopen()
   mem->end = 0;
   mem->capa = BUFSIZ;
 
-  return xfunopen(mem, mem_read, mem_write, mem_seek, mem_close);
+  return xfunopen(mem, mem_read, mem_write, mem_seek, mem_flush, mem_close);
 }

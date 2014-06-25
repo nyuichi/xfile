@@ -7,78 +7,33 @@ extern "C" {
 
 #include <stddef.h>
 #include <stdarg.h>
+#include <stdio.h>
 
-/* configurations */
-#ifndef XFILE_ENABLE_CSTDIO
-# define XFILE_ENABLE_CSTDIO 1
-#endif
-#ifndef XFILE_ENABLE_POSIX
-# define XFILE_ENABLE_POSIX 0
-#endif
-#ifndef XFILE_STDX_TYPE
-# define XFILE_STDX_TYPE 1      /* 0: no, 1: cstdio, 2: posix */
-#endif
-#ifndef XFILE_FOPEN_TYPE
-# define XFILE_FOPEN_TYPE 1     /* 0: no, 1: cstdio, 2: posix */
-#endif
-
-#if XFILE_ENABLE_CSTDIO
-# include <stdio.h>
-#else
-# if !defined(_IONBF)
-#  define _IOFBF 0
-#  define _IOLBF 1
-#  define _IONBF 2
-#  define BUFSIZ 1024
-# endif
-#endif
-
-#ifndef EOF
-# define EOF (-1)
-#endif
-
-typedef struct xFILE {
-  /* buffered IO */
-  char *buf;
-  char ownbuf;
-  int mode;
-  int bufsiz;
-  char *s, *c, *e;
-  /* ungetc buf */
-  char ub[3];
-  int us;
-  int ur;
+typedef struct {
+  char ungot;
+  int flags;
   /* operators */
   struct {
     void *cookie;
     int (*read)(void *, char *, int);
     int (*write)(void *, const char *, int);
     long (*seek)(void *, long, int);
+    int (*flush)(void *);
     int (*close)(void *);
   } vtable;
-  struct xFILE *next;
 } xFILE;
 
 /* generic file constructor */
-xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
-
-/* buffering */
-int xsetvbuf(xFILE *, char *, int, size_t);
-int xfflush(xFILE *);
-int xffill(xFILE *);
+xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*flush)(void *), int (*close)(void *));
 
 /* resource aquisition */
-#if XFILE_FOPEN_TYPE != 0
 xFILE *xfopen(const char *, const char *);
-#endif
-#if XFILE_ENABLE_CSTDIO
-xFILE *xfpopen(FILE *);         /* disables xfile's buffer management */
-#endif
-#if XFILE_ENABLE_POSIX
-xFILE *xfdopen(int);
-#endif
+xFILE *xfpopen(FILE *);
 xFILE *xmopen();
 int xfclose(xFILE *);
+
+/* buffer management */
+int xfflush(xFILE *);
 
 /* direct IO with buffering */
 size_t xfread(void *, size_t, size_t, xFILE *);
@@ -89,14 +44,18 @@ long xfseek(xFILE *, long offset, int whence);
 long xftell(xFILE *);
 void xrewind(xFILE *);
 
+/* stream status */
+void xclearerr(xFILE *);
+int xfeof(xFILE *);
+int xferror(xFILE *);
+
 /* character IO */
 int xfgetc(xFILE *);
 char *xfgets(char *, int, xFILE *);
 int xfputc(int, xFILE *);
 int xfputs(const char *, xFILE *);
 char xgetc(xFILE *);
-char xgetchar(void);
-/* char *xgets(char *); */
+int xgetchar(void);
 int xputc(int, xFILE *);
 int xputchar(int);
 int xputs(char *);
@@ -107,17 +66,10 @@ int xprintf(const char *, ...);
 int xfprintf(xFILE *, const char *, ...);
 int xvfprintf(xFILE *, const char *, va_list);
 
-#if XFILE_STDX_TYPE != 0
-
 /* standard I/O */
-xFILE *xstdin_();
-xFILE *xstdout_();
-xFILE *xstderr_();
-#define xstdin	(xstdin_())
-#define xstdout	(xstdout_())
-#define xstderr	(xstderr_())
-
-#endif
+extern xFILE *xstdin;
+extern xFILE *xstdout;
+extern xFILE *xstderr;
 
 #if defined(__cplusplus)
 }
