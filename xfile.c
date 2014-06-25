@@ -256,9 +256,9 @@ xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 
   va_copy(ap2, ap);
   {
-    char buf[vsnprintf(NULL, 0, fmt, ap2) + 1];
+    char buf[vsnprintf(NULL, 0, fmt, ap2)];
 
-    vsnprintf(buf, sizeof buf, fmt, ap);
+    vsnprintf(buf, sizeof buf + 1, fmt, ap);
 
     if (xfwrite(buf, sizeof buf, 1, stream) < 1) {
       return -1;
