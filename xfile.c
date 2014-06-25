@@ -11,7 +11,7 @@
 #define XF_ERR 2
 
 xFILE *
-xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
+xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*flush)(void *), int (*close)(void *))
 {
   xFILE *file;
 
@@ -26,6 +26,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   file->vtable.read = read;
   file->vtable.write = write;
   file->vtable.seek = seek;
+  file->vtable.flush = flush;
   file->vtable.close = close;
 
   return file;
@@ -62,6 +63,12 @@ xfclose(xFILE *file)
 
   free(file);
   return 0;
+}
+
+int
+xfflush(xFILE *file)
+{
+  return file->vtable.flush(file->vtable.cookie);
 }
 
 size_t
@@ -313,6 +320,12 @@ file_seek(void *cookie, long pos, int whence)
 }
 
 static int
+file_flush(void *cookie)
+{
+  return fflush(unpack(cookie));
+}
+
+static int
 file_close(void *cookie)
 {
   return fclose(unpack(cookie));
@@ -323,7 +336,7 @@ xfpopen(FILE *fp)
 {
   xFILE *file;
 
-  file = xfunopen(fp, file_read, file_write, file_seek, file_close);
+  file = xfunopen(fp, file_read, file_write, file_seek, file_flush, file_close);
   if (! file) {
     return NULL;
   }
@@ -331,7 +344,7 @@ xfpopen(FILE *fp)
   return file;
 }
 
-#define FILE_VTABLE file_read, file_write, file_seek, file_close
+#define FILE_VTABLE file_read, file_write, file_seek, file_flush, file_close
 
 static xFILE xfile_stdin  = { -1, 0, { (void *)0, FILE_VTABLE } };
 static xFILE xfile_stdout = { -1, 0, { (void *)1, FILE_VTABLE } };
@@ -399,6 +412,14 @@ mem_seek(void *cookie, long pos, int whence)
 }
 
 static int
+mem_flush(void *cookie)
+{
+  (void)cookie;
+
+  return 0;
+}
+
+static int
 mem_close(void *cookie)
 {
   struct membuf *mem;
@@ -420,5 +441,5 @@ xmopen()
   mem->end = 0;
   mem->capa = BUFSIZ;
 
-  return xfunopen(mem, mem_read, mem_write, mem_seek, mem_close);
+  return xfunopen(mem, mem_read, mem_write, mem_seek, mem_flush, mem_close);
 }

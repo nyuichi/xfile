@@ -18,18 +18,22 @@ typedef struct {
     int (*read)(void *, char *, int);
     int (*write)(void *, const char *, int);
     long (*seek)(void *, long, int);
+    int (*flush)(void *);
     int (*close)(void *);
   } vtable;
 } xFILE;
 
 /* generic file constructor */
-xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
+xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*flush)(void *), int (*close)(void *));
 
 /* resource aquisition */
 xFILE *xfopen(const char *, const char *);
 xFILE *xfpopen(FILE *);
 xFILE *xmopen();
 int xfclose(xFILE *);
+
+/* buffer management */
+int xfflush(xFILE *);
 
 /* direct IO with buffering */
 size_t xfread(void *, size_t, size_t, xFILE *);
