@@ -9,7 +9,7 @@ extern "C" {
 #include <stdarg.h>
 #include <stdio.h>
 
-typedef struct xFILE {
+typedef struct {
   int flags;
   /* operators */
   struct {
@@ -57,12 +57,9 @@ int xfprintf(xFILE *, const char *, ...);
 int xvfprintf(xFILE *, const char *, va_list);
 
 /* standard I/O */
-xFILE *xstdin_();
-xFILE *xstdout_();
-xFILE *xstderr_();
-#define xstdin	(xstdin_())
-#define xstdout	(xstdout_())
-#define xstderr	(xstderr_())
+extern xFILE *xstdin;
+extern xFILE *xstdout;
+extern xFILE *xstderr;
 
 #if defined(__cplusplus)
 }

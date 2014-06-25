@@ -27,58 +27,6 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   return file;
 }
 
-static int
-file_read(void *cookie, char *ptr, int size)
-{
-  int r;
-
-  r = fread(ptr, 1, size, (FILE *)cookie);
-  if (r < size && ferror((FILE *)cookie)) {
-    return -1;
-  }
-  if (r == 0 && feof((FILE *)cookie)) {
-    clearerr((FILE *)cookie);
-  }
-  return r;
-}
-
-static int
-file_write(void *cookie, const char *ptr, int size)
-{
-  int r;
-
-  r = fwrite(ptr, 1, size, (FILE *)cookie);
-  if (r < size) {
-    return -1;
-  }
-  return r;
-}
-
-static long
-file_seek(void *cookie, long pos, int whence)
-{
-  return fseek((FILE *)cookie, pos, whence);
-}
-
-static int
-file_close(void *cookie)
-{
-  return fclose((FILE *)cookie);
-}
-
-xFILE *
-xfpopen(FILE *fp)
-{
-  xFILE *file;
-
-  file = xfunopen(fp, file_read, file_write, file_seek, file_close);
-  if (! file) {
-    return NULL;
-  }
-
-  return file;
-}
-
 xFILE *
 xfopen(const char *filename, const char *mode)
 {
@@ -96,28 +44,6 @@ xfopen(const char *filename, const char *mode)
   }
 
   return file;
-}
-
-static xFILE *xfile_stdinp__;
-static xFILE *xfile_stdoutp__;
-static xFILE *xfile_stderrp__;
-
-xFILE *
-xstdin_()
-{
-  return xfile_stdinp__ ? xfile_stdinp__ : (xfile_stdinp__ = xfpopen(stdin));
-}
-
-xFILE *
-xstdout_()
-{
-  return xfile_stdoutp__ ? xfile_stdoutp__ : (xfile_stdoutp__ = xfpopen(stdout));
-}
-
-xFILE *
-xstderr_()
-{
-  return xfile_stderrp__ ? xfile_stderrp__ : (xfile_stderrp__ = xfpopen(stderr));
 }
 
 int
@@ -265,6 +191,85 @@ xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 
   return sizeof buf;
 }
+
+/*
+ * Derieved xFILE Classes
+ */
+
+static FILE *
+unpack(void *cookie)
+{
+  switch ((long)cookie) {
+  default: return cookie;
+  case 0:  return stdin;
+  case 1:  return stdout;
+  case -1: return stderr;
+  }
+}
+
+static int
+file_read(void *cookie, char *ptr, int size)
+{
+  FILE *file = unpack(cookie);;
+  int r;
+
+  r = fread(ptr, 1, size, file);
+  if (r < size && ferror(file)) {
+    return -1;
+  }
+  if (r == 0 && feof(file)) {
+    clearerr(file);
+  }
+  return r;
+}
+
+static int
+file_write(void *cookie, const char *ptr, int size)
+{
+  FILE *file = unpack(cookie);
+  int r;
+
+  r = fwrite(ptr, 1, size, file);
+  if (r < size) {
+    return -1;
+  }
+  return r;
+}
+
+static long
+file_seek(void *cookie, long pos, int whence)
+{
+  return fseek(unpack(cookie), pos, whence);
+}
+
+static int
+file_close(void *cookie)
+{
+  return fclose(unpack(cookie));
+}
+
+xFILE *
+xfpopen(FILE *fp)
+{
+  xFILE *file;
+
+  file = xfunopen(fp, file_read, file_write, file_seek, file_close);
+  if (! file) {
+    return NULL;
+  }
+
+  return file;
+}
+
+#define FILE_VTABLE file_read, file_write, file_seek, file_close
+
+static xFILE xfile_stdin  = { 0, { (void *)0, FILE_VTABLE } };
+static xFILE xfile_stdout = { 0, { (void *)1, FILE_VTABLE } };
+static xFILE xfile_stderr = { 0, { (void *)-1, FILE_VTABLE } };
+
+xFILE *xstdin  = &xfile_stdin;
+xFILE *xstdout = &xfile_stdout;
+xFILE *xstderr = &xfile_stderr;
 
 struct membuf {
   char *buf;
