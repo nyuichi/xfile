@@ -4,6 +4,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#define XF_EOF 1
+#define XF_ERR 2
+
 xFILE *
 xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *))
 {
@@ -13,11 +16,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   if (! file) {
     return NULL;
   }
-  /* no buffering at the beginning */
-  file->buf = NULL;
-  file->ownbuf = 0;
-  file->mode = _IONBF;
-  file->bufsiz = 0;
+  file->flags = 0;
   /* set vtable */
   file->vtable.cookie = cookie;
   file->vtable.read = read;
@@ -25,72 +24,7 @@ xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, co
   file->vtable.seek = seek;
   file->vtable.close = close;
 
-  xsetvbuf(file, (char *)NULL, _IOFBF, 0);
-
   return file;
-}
-
-int
-xsetvbuf(xFILE *file, char *buf, int mode, size_t bufsiz)
-{
-  assert(mode != _IOLBF);       /* FIXME: support IOLBF */
-
-  if (file->ownbuf) {
-    free(file->buf);
-  }
-
-  file->mode = mode;
-  if (buf) {
-    file->buf = buf;
-    file->ownbuf = 0;
-    file->bufsiz = bufsiz;
-  }
-  else {
-    if (mode == _IONBF) {
-      file->buf = NULL;
-      file->ownbuf = 0;
-      file->bufsiz = 0;
-    }
-    else {
-      assert(bufsiz == 0);      /* TODO allow custom buffer size? */
-      file->buf = (char *)malloc(BUFSIZ);
-      file->ownbuf = 1;
-      file->bufsiz = BUFSIZ;
-    }
-  }
-  file->s = file->c = file->buf;
-  file->e = file->buf + file->bufsiz;
-  return 0;
-}
-
-int
-xfflush(xFILE *file)
-{
-  int r;
-
-  if (file->mode == _IONBF) {
-    return 0;
-  }
-
-  while ((r = file->vtable.write(file->vtable.cookie, file->s, file->c - file->s)) > 0) {
-    file->c -= r;
-  }
-  return r;                     /* 0 on success, -1 on error */
-}
-
-int
-xffill(xFILE *file)
-{
-  int r;
-
-  if (file->mode == _IONBF) {
-    return 0;
-  }
-
-  while ((r = file->vtable.read(file->vtable.cookie, file->c, file->e - file->c)) > 0) {
-    file->c += r;
-  }
-  return r;                     /* 0 on success, -1 on error */
 }
 
 static int
@@ -141,7 +75,6 @@ xfpopen(FILE *fp)
   if (! file) {
     return NULL;
   }
-  xsetvbuf(file, NULL, _IONBF, 0);
 
   return file;
 }
@@ -156,13 +89,11 @@ xfopen(const char *filename, const char *mode)
   if (! fp) {
     return NULL;
   }
-  setvbuf(fp, NULL, _IONBF, 0);
 
   file = xfpopen(fp);
   if (! file) {
     return NULL;
   }
-  xsetvbuf(file, NULL, _IOFBF, 0);
 
   return file;
 }
@@ -194,8 +125,6 @@ xfclose(xFILE *file)
 {
   int r;
 
-  xfflush(file);
-
   r = file->vtable.close(file->vtable.cookie);
   if (r == EOF) {
     return -1;
@@ -208,66 +137,45 @@ xfclose(xFILE *file)
 size_t
 xfread(void *ptr, size_t block, size_t nitems, xFILE *file)
 {
-  int size, avail, eof = 0;
   char *dst = (char *)ptr;
+  char buf[block];
+  size_t i;
+  int n;
 
-  size = block * nitems;        /* TODO: optimize block read */
-
-  if (file->mode == _IONBF) {
-    return file->vtable.read(file->vtable.cookie, ptr, size);
+  for (i = 0; i < nitems; ++i) {
+    n = file->vtable.read(file->vtable.cookie, buf, block);
+    if (n < 0) {
+      file->flags |= XF_ERR;
+      break;
+    }
+    if (n == 0) {
+      file->flags |= XF_EOF;
+      break;
+    }
+    memcpy(dst, buf, n);
+    dst += n;
   }
 
-  while (1) {
-    avail = file->c - file->s;
-    if (size <= avail) {
-      memcpy(dst, file->s, size);
-      memmove(file->s, file->s + size, avail - size);
-      file->c -= size;
-      return block * nitems;
-    }
-    else {
-      memcpy(dst, file->s, avail);
-      file->c = file->s;
-      size -= avail;
-      dst += avail;
-      if (eof) {
-        *dst = EOF;
-        return block * nitems - size;
-      }
-      xffill(file);
-      if (file->c - file->s == 0)
-        eof = 1;
-    }
-  }
+  return i;
 }
 
 size_t
 xfwrite(const void *ptr, size_t block, size_t nitems, xFILE *file)
 {
-  int size, room;
   char *dst = (char *)ptr;
+  size_t i;
+  int n;
 
-  size = block * nitems;        /* TODO: optimize block write */
-
-  if (file->mode == _IONBF) {
-    return file->vtable.write(file->vtable.cookie, ptr, size);
+  for (i = 0; i < nitems; ++i) {
+    n = file->vtable.write(file->vtable.cookie, dst, block);
+    if (n < 0) {
+      file->flags |= XF_ERR;
+      break;
+    }
+    dst += n;
   }
 
-  while (1) {
-    room = file->e - file->c;
-    if (room < size) {
-      memcpy(file->c, dst, room);
-      file->c = file->e;
-      size -= room;
-      dst += room;
-      xfflush(file);            /* TODO error handling */
-    }
-    else {
-      memcpy(file->c, dst, size);
-      file->c += size;
-      return block * nitems;
-    }
-  }
+  return i;
 }
 
 long

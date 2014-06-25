@@ -10,12 +10,7 @@ extern "C" {
 #include <stdio.h>
 
 typedef struct xFILE {
-  /* buffered IO */
-  char *buf;
-  char ownbuf;
-  int mode;
-  int bufsiz;
-  char *s, *c, *e;
+  int flags;
   /* operators */
   struct {
     void *cookie;
@@ -28,11 +23,6 @@ typedef struct xFILE {
 
 /* generic file constructor */
 xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(void *, const char *, int), long (*seek)(void *, long, int), int (*close)(void *));
-
-/* buffering */
-int xsetvbuf(xFILE *, char *, int, size_t);
-int xfflush(xFILE *);
-int xffill(xFILE *);
 
 /* resource aquisition */
 xFILE *xfopen(const char *, const char *);
