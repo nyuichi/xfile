@@ -28,7 +28,6 @@ typedef struct xFILE {
     long (*seek)(void *, long, int);
     int (*close)(void *);
   } vtable;
-  struct xFILE *next;
 } xFILE;
 
 /* generic file constructor */
