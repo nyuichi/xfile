@@ -39,6 +39,11 @@ long xfseek(xFILE *, long offset, int whence);
 long xftell(xFILE *);
 void xrewind(xFILE *);
 
+/* stream status */
+void xclearerr(xFILE *);
+int xfeof(xFILE *);
+int xferror(xFILE *);
+
 /* character IO */
 int xfgetc(xFILE *);
 char *xfgets(char *, int, xFILE *);

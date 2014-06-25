@@ -122,6 +122,24 @@ xrewind(xFILE *file)
   file->vtable.seek(file->vtable.cookie, 0, SEEK_SET);
 }
 
+void
+xclearerr(xFILE *file)
+{
+  file->flags = 0;
+}
+
+int
+xfeof(xFILE *file)
+{
+  return file->flags & XF_EOF;
+}
+
+int
+xferror(xFILE *file)
+{
+  return file->flags & XF_ERR;
+}
+
 int
 xfgetc(xFILE *file)
 {
