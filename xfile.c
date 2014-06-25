@@ -181,15 +181,21 @@ xfprintf(xFILE *stream, const char *fmt, ...)
 int
 xvfprintf(xFILE *stream, const char *fmt, va_list ap)
 {
-  char buf[vsnprintf(NULL, 0, fmt, ap) + 1];
+  va_list ap2;
 
-  vsnprintf(buf, sizeof buf, fmt, ap);
+  va_copy(ap2, ap);
+  {
+    char buf[vsnprintf(NULL, 0, fmt, ap2) + 1];
 
-  if (xfwrite(buf, sizeof buf, 1, stream) < 1) {
-    return -1;
+    vsnprintf(buf, sizeof buf, fmt, ap);
+
+    if (xfwrite(buf, sizeof buf, 1, stream) < 1) {
+      return -1;
+    }
+
+    va_end(ap2);
+    return sizeof buf;
   }
-
-  return sizeof buf;
 }
 
 /*

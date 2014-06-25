@@ -26,7 +26,7 @@ xFILE *xfunopen(void *cookie, int (*read)(void *, char *, int), int (*write)(voi
 
 /* resource aquisition */
 xFILE *xfopen(const char *, const char *);
-xFILE *xfpopen(FILE *);       /* disables xfile's buffer management */
+xFILE *xfpopen(FILE *);
 xFILE *xmopen();
 int xfclose(xFILE *);
 
