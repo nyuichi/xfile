@@ -10,7 +10,7 @@ extern "C" {
 #include <stdio.h>
 
 typedef struct {
-  char ungot;
+  int ungot;
   int flags;
   /* operators */
   struct {
