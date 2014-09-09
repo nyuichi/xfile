@@ -1,5 +1,5 @@
 all: test
 
 test:
-	cc -g main.c xfile.c
+	cc -g main.c
 	./a.out
