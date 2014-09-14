@@ -436,7 +436,7 @@ xfgetc(xFILE *file)
 
   xfread(buf, 1, 1, file);
 
-  if (xfeof(file)) {
+  if (xfeof(file) || xferror(file)) {
     return EOF;
   }
 
@@ -500,6 +500,9 @@ xfputc(int c, xFILE *file)
   buf[0] = c;
   xfwrite(buf, 1, 1, file);
 
+  if (xferror(file)) {
+    return EOF;
+  }
   return buf[0];
 }
 
@@ -523,6 +526,9 @@ xfputs(const char *str, xFILE *file)
   len = strlen(str);
   xfwrite(str, len, 1, file);
 
+  if (xferror(file)) {
+    return EOF;
+  }
   return 0;
 }
 
