@@ -450,30 +450,25 @@ xgetc(xFILE *file)
 }
 
 static inline char *
-xfgets(char *s, int size, xFILE *file)
+xfgets(char *str, int size, xFILE *file)
 {
-  int c, i;
+  int c = EOF, i;
 
-  for (i = 0; i < size - 1; ++i) {
-    c = xfgetc(file);
-    if (c == EOF) {
+  for (i = 0; i < size - 1 && c != '\n'; ++i) {
+    if ((c = xfgetc(file)) == EOF) {
       break;
     }
-
-    s[i] = c;
-
-    if (c == '\n') {
-      ++i;
-      break;
-    }
+    str[i] = c;
   }
-  s[i] = '\0';
-
   if (i == 0 && c == EOF) {
     return NULL;
   }
+  if (xferror(file)) {
+    return NULL;
+  }
+  str[i] = '\0';
 
-  return s;
+  return str;
 }
 
 static inline int
