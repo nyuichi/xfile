@@ -56,11 +56,11 @@ static inline int xfgetc(xFILE *);
 static inline char *xfgets(char *, int, xFILE *);
 static inline int xfputc(int, xFILE *);
 static inline int xfputs(const char *, xFILE *);
-static inline char xgetc(xFILE *);
+static inline int xgetc(xFILE *);
 static inline int xgetchar(void);
 static inline int xputc(int, xFILE *);
 static inline int xputchar(int);
-static inline int xputs(char *);
+static inline int xputs(const char *);
 static inline int xungetc(int, xFILE *);
 
 /* formatted I/O */
@@ -446,6 +446,39 @@ xfgetc(xFILE *file)
 }
 
 static inline int
+xgetc(xFILE *file)
+{
+  return xfgetc(file);
+}
+
+static inline char *
+xfgets(char *s, int size, xFILE *file)
+{
+  int c, i;
+
+  for (i = 0; i < size - 1; ++i) {
+    c = xfgetc(file);
+    if (c == EOF) {
+      break;
+    }
+
+    s[i] = c;
+
+    if (c == '\n') {
+      ++i;
+      break;
+    }
+  }
+  s[i] = '\0';
+
+  if (i == 0 && c == EOF) {
+    return NULL;
+  }
+
+  return s;
+}
+
+static inline int
 xungetc(int c, xFILE *file)
 {
   file->ungot = c;
@@ -473,6 +506,12 @@ xfputc(int c, xFILE *file)
 }
 
 static inline int
+xputc(int c, xFILE *file)
+{
+  return xfputc(c, file);
+}
+
+static inline int
 xputchar(int c)
 {
   return xfputc(c, xstdout);
@@ -487,6 +526,12 @@ xfputs(const char *str, xFILE *file)
   xfwrite(str, len, 1, file);
 
   return 0;
+}
+
+static inline int
+xputs(const char *s)
+{
+  return xfputs(s, xstdout);
 }
 
 static inline int
