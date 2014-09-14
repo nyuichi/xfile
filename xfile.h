@@ -1,5 +1,5 @@
-#ifndef XFILE_H__
-#define XFILE_H__
+#ifndef XFILE_H
+#define XFILE_H
 
 #if defined(__cplusplus)
 extern "C" {
@@ -69,9 +69,9 @@ static inline int xfprintf(xFILE *, const char *, ...);
 static inline int xvfprintf(xFILE *, const char *, va_list);
 
 /* standard I/O */
-#define xstdin (xstdin__())
-#define xstdout (xstdout__())
-#define xstderr (xstderr__())
+#define xstdin (xstdin_())
+#define xstdout (xstdout_())
+#define xstderr (xstderr_())
 
 
 /* private */
@@ -179,7 +179,7 @@ xfpopen(FILE *fp)
 #define XF_FILE_VTABLE xf_file_read, xf_file_write, xf_file_seek, xf_file_flush, xf_file_close
 
 static inline xFILE *
-xstdin__()
+xstdin_()
 {
   static xFILE xfile_stdin = { -1, 0, { (void *)0, XF_FILE_VTABLE } };
 
@@ -187,7 +187,7 @@ xstdin__()
 }
 
 static inline xFILE *
-xstdout__()
+xstdout_()
 {
   static xFILE xfile_stdout = { -1, 0, { (void *)1, XF_FILE_VTABLE } };
 
@@ -195,7 +195,7 @@ xstdout__()
 }
 
 static inline xFILE *
-xstderr__()
+xstderr_()
 {
   static xFILE xfile_stderr = { -1, 0, { (void *)-1, XF_FILE_VTABLE } };
 
