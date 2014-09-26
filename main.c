@@ -6,7 +6,7 @@ void
 test_memio(void)
 {
   xFILE *mem;
-  char c;
+  int c;
 
   mem = xmopen();
 
